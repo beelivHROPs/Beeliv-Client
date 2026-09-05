@@ -77,6 +77,30 @@ export default function PublicEntryHome() {
               className="absolute right-0 bottom-0 h-72 w-72 rounded-full blur-[90px]"
               style={{ background: "radial-gradient(circle, var(--gold) 0%, transparent 70%)", opacity: 0.1 }}
             />
+            {/* Glossy diagonal "liquid ribbon" — project-lead reference (an
+                Ultahost ad's soft blurred glass-ribbon background). Same
+                pure-CSS blur technique as the blobs above, just an elongated
+                rotated shape instead of a circle, plus a thin lighter streak
+                layered on top for the glossy highlight a real glass/liquid
+                render would catch. Purely decorative, sits behind all real
+                content (z-0 implicit, no z-index needed since it's earlier
+                in DOM order than the header/copy below). */}
+            <div
+              className="absolute top-1/4 left-[-10%] h-28 w-[140%] rotate-[-16deg] blur-[60px]"
+              style={{
+                background:
+                  "linear-gradient(90deg, transparent 0%, var(--primary) 30%, var(--gold) 55%, var(--primary) 80%, transparent 100%)",
+                opacity: 0.22,
+              }}
+            />
+            <div
+              className="absolute top-[28%] left-[-10%] h-8 w-[140%] rotate-[-16deg] blur-[30px]"
+              style={{
+                background:
+                  "linear-gradient(90deg, transparent 10%, white 50%, transparent 90%)",
+                opacity: 0.35,
+              }}
+            />
           </div>
 
           <PublicHeader glass />
