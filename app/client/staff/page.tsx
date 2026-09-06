@@ -60,7 +60,7 @@ export default function ClientStaffListPage() {
                 <td className="px-4 py-2 text-right">
                   <Link
                     href={`/client/staff/${s.id}`}
-                    className="font-medium text-primary hover:underline"
+                    className="font-medium text-[color:var(--foreground)] hover:underline"
                   >
                     View →
                   </Link>

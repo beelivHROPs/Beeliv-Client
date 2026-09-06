@@ -346,10 +346,10 @@ export default function PublicEntryHome() {
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Image
-              src="/beeliv-logo-mark-v2.png"
+              src="/beeliv-logo-mark-hd.png"
               alt="Beeliv Hospitality"
-              width={214}
-              height={223}
+              width={314}
+              height={342}
               className="h-6 w-auto object-contain"
             />
             <span className="text-xs font-medium text-muted-foreground">Beeliv Hospitality</span>

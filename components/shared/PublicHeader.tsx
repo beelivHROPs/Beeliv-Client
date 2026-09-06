@@ -192,10 +192,10 @@ export function PublicHeader({
             <SheetHeader className="border-b border-border">
               <SheetTitle className="sr-only">Navigation menu</SheetTitle>
               <Image
-                src="/beeliv-logo-mark-v2.png"
+                src="/beeliv-logo-mark-hd.png"
                 alt="Beeliv Hospitality"
-                width={214}
-                height={223}
+                width={314}
+                height={342}
                 className="h-10 w-auto object-contain"
               />
             </SheetHeader>

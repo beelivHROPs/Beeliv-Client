@@ -82,10 +82,10 @@ export default async function ApplyEntryPage({
                 className="flex items-center justify-center rounded-2xl bg-white p-3 shadow-md"
               >
                 <Image
-                  src="/beeliv-logo-mark-v2.png"
+                  src="/beeliv-logo-mark-hd.png"
                   alt="Beeliv Hospitality"
-                  width={214}
-                  height={223}
+                  width={314}
+                  height={342}
                   priority
                   className="h-16 w-auto object-contain"
                 />

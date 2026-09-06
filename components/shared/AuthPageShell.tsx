@@ -36,10 +36,10 @@ export function AuthPageShell({ children }: { children: React.ReactNode }) {
           className="mx-auto mb-6 flex w-fit items-center justify-center rounded-2xl bg-white p-3 shadow-md"
         >
           <Image
-            src="/beeliv-logo-mark-v2.png"
+            src="/beeliv-logo-mark-hd.png"
             alt="Beeliv Hospitality"
-            width={214}
-            height={223}
+            width={314}
+            height={342}
             priority
             className="h-12 w-auto object-contain"
           />

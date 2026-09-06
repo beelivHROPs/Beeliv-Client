@@ -37,7 +37,7 @@ export default function ClientDashboardPage() {
   const { nextPayrollDate, cadence } = SAMPLE_PAYROLL_SCHEDULE;
 
   const viewLinkClass =
-    "mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline";
+    "mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-[color:var(--foreground)] hover:underline";
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -137,7 +137,7 @@ export default function ClientDashboardPage() {
               <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Assigned Staff
               </h2>
-              <Link href="/client/staff" className="text-xs font-medium text-primary hover:underline">
+              <Link href="/client/staff" className="text-xs font-medium text-[color:var(--foreground)] hover:underline">
                 View Staff →
               </Link>
             </div>
