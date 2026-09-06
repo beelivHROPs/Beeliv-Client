@@ -57,7 +57,7 @@ export function Faq() {
     <section
       id="faq"
       aria-label="Frequently asked questions"
-      className="mx-auto w-full max-w-3xl scroll-mt-20 px-4 py-12 sm:px-6"
+      className="mx-auto w-full max-w-5xl scroll-mt-20 px-4 py-12 sm:px-6"
     >
       <h2 className="font-heading text-2xl font-semibold text-foreground sm:text-3xl">
         Frequently asked questions

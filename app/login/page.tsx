@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { PasswordField } from "@/components/shared/PasswordField";
 import {
   AuthPageShell,
@@ -120,9 +119,9 @@ export default function LoginPage() {
                   </Link>
                 </div>
 
-                <Button type="button" disabled size="hero" className="w-full" title={disabledTitle}>
+                <button type="button" disabled title={disabledTitle} className={AUTH_PRIMARY_BUTTON_CLASS}>
                   Log In
-                </Button>
+                </button>
               </form>
 
               <p className="mt-4 text-center text-sm text-muted-foreground">

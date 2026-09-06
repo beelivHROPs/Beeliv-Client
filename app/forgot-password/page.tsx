@@ -3,7 +3,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   AuthPageShell,
   AUTH_PRIMARY_BUTTON_CLASS,
@@ -87,9 +86,9 @@ export default function ForgotPasswordPage() {
                   />
                 </div>
 
-                <Button type="button" disabled size="hero" className="w-full" title={disabledTitle}>
+                <button type="button" disabled title={disabledTitle} className={AUTH_PRIMARY_BUTTON_CLASS}>
                   Send Reset Link
-                </Button>
+                </button>
               </form>
 
               <Link

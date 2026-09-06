@@ -4,7 +4,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SAMPLE_JOB_LISTINGS } from "@/lib/placeholder-data";
 import { Input } from "@/components/ui/input";
-import { buttonVariants } from "@/components/ui/button";
 import { PasswordField } from "@/components/shared/PasswordField";
 import {
   AuthPageShell,
@@ -167,7 +166,7 @@ export default async function ApplyEntryPage({
 
                 <Link
                   href="https://talent.beeliv.co/applicant/dashboard"
-                  className={buttonVariants({ size: "hero", className: "w-full" })}
+                  className={AUTH_PRIMARY_BUTTON_CLASS}
                 >
                   Create Account &amp; Continue
                 </Link>

@@ -6,6 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { MetricCard } from "@/components/shared/MetricCard";
 import { CountUp } from "@/components/shared/CountUp";
+import { ProgressRing } from "@/components/shared/ProgressRing";
+import { HeroStatCard } from "@/components/shared/HeroStatCard";
 import {
   SAMPLE_ATTENDANCE_TODAY,
   SAMPLE_PAYROLL_SCHEDULE,
@@ -41,21 +43,40 @@ export default function ClientDashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      {/* Welcome header — same bg-brand-wash treatment as the applicant
-          dashboard's hero, plus a quiet "Read-only" cue reinforcing this
-          role has no mutating control anywhere in the product. */}
-      <div className="bg-brand-wash mb-5 flex flex-wrap items-start justify-between gap-3 rounded-2xl px-4 py-5 sm:px-6">
-        <div>
-          <p className="mb-0.5 text-[11px] font-semibold tracking-wide text-warning uppercase">
-            Client Portal
-          </p>
-          <h1 className="font-heading text-2xl font-semibold text-foreground">Dashboard</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Sample Outlet 1</p>
-        </div>
-        <span className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-          <Eye className="h-3.5 w-3.5" />
-          Read-only oversight
-        </span>
+      {/* Hero row — same gradient hero-stat + donut pattern as HR/Ops, but
+          tone="slate" (var(--foreground), this dashboard's own nav color)
+          instead of purple — a dark-neutral gradient matching Client's
+          "oversight, not control" restraint rather than a celebratory
+          brand-colored one. Badge carries the existing "Read-only
+          oversight" cue instead of a separate span. */}
+      <div className="mb-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <HeroStatCard
+          tone="slate"
+          eyebrow={
+            <>
+              <Eye className="h-3 w-3" /> Client Portal — Read-Only
+            </>
+          }
+          title="Sample Outlet 1"
+          value={<CountUp value={staffCount} />}
+          valueLabel="Assigned Staff"
+          badge="Read-only oversight"
+        />
+        <Card>
+          <CardContent className="flex h-full flex-col items-center justify-center gap-2 text-center">
+            <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Documentation Completion
+            </h2>
+            <ProgressRing
+              value={docsPercent}
+              size={104}
+              centerLabel={<span className="text-lg font-bold text-foreground">{docsPercent}%</span>}
+            />
+            <p className="text-xs text-muted-foreground">
+              {docsComplete} of {staffCount} staff complete
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Key metrics — staggered entrance, ~70ms/tile (design-system.md §15). */}
