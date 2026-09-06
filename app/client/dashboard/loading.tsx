@@ -1,24 +1,16 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/shared/Skeleton";
-import { DashboardMetricsRowSkeleton } from "@/components/shared/DashboardLoadingShell";
+import { DashboardHeroRowSkeleton, DashboardMetricsRowSkeleton } from "@/components/shared/DashboardLoadingShell";
 
-/** Mirrors app/client/dashboard/page.tsx: header with a "Read-only" chip,
- *  4 metric tiles, then an Assigned Staff list beside Attendance + Payroll
- *  cards. Distinct from the other dashboards' plain header — this one has
- *  the extra badge on the right, so it gets its own header markup rather
- *  than the shared DashboardHeaderSkeleton. */
+/** Mirrors the current app/client/dashboard/page.tsx: hero row
+ *  (HeroStatCard + donut, tone="slate" now folds the "Read-only" badge
+ *  into the hero itself), 4 metric tiles, then an Assigned Staff list
+ *  beside Attendance + Payroll cards. Previously stale — showed the old
+ *  flat header-with-separate-badge shape this page no longer has. */
 export default function Loading() {
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="bg-brand-wash mb-5 flex flex-wrap items-start justify-between gap-3 rounded-2xl px-4 py-5 sm:px-6">
-        <div>
-          <Skeleton className="h-3 w-28" />
-          <Skeleton className="mt-2 h-7 w-32" />
-          <Skeleton className="mt-2 h-4 w-32" />
-        </div>
-        <Skeleton className="h-6 w-36 rounded-full" />
-      </div>
-
+      <DashboardHeroRowSkeleton />
       <DashboardMetricsRowSkeleton />
 
       <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">

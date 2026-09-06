@@ -70,7 +70,8 @@ export default function ClientDashboardPage() {
             <ProgressRing
               value={docsPercent}
               size={104}
-              centerLabel={<span className="text-lg font-bold text-foreground">{docsPercent}%</span>}
+              tone="slate"
+              showCenterLabel
             />
             <p className="text-xs text-muted-foreground">
               {docsComplete} of {staffCount} staff complete
