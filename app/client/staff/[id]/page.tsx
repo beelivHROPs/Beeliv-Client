@@ -26,7 +26,13 @@ export async function generateMetadata({
  * Link tone uses --foreground (not --primary) matching this dashboard's own
  * established "oversight, not control" convention (app/client/dashboard/
  * page.tsx's viewLinkClass) rather than the purple used elsewhere.
+ *
+ * Outlet-scoped (rbac.md §4) — direct-URL access to another outlet's staff
+ * record now 404s the same as a nonexistent id, rather than leaking full
+ * detail (found via a QA sweep).
  */
+const ASSIGNED_OUTLET = "Sample Outlet 1";
+
 export default async function ClientStaffDetailPage({
   params,
 }: {
@@ -35,7 +41,7 @@ export default async function ClientStaffDetailPage({
   const { id } = await params;
   const staff = SAMPLE_STAFF.find((s) => s.id === id);
 
-  if (!staff) {
+  if (!staff || staff.outlet !== ASSIGNED_OUTLET) {
     notFound();
   }
 

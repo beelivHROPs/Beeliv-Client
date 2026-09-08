@@ -10,13 +10,21 @@ export const metadata: Metadata = { title: "Staff" };
 
 /** Mobile fix — same treatment/rationale as app/hr/staff/page.tsx: a card
  *  list below `sm:`, the unchanged table at `sm:` and up. */
+// Outlet-scoped (rbac.md §4: "Own business/outlet only") — same
+// constant/pattern already used by app/client/dashboard/page.tsx. Found
+// unfiltered via a QA sweep (same bug class the dashboard already had
+// fixed once before, never propagated here).
+const ASSIGNED_OUTLET = "Sample Outlet 1";
+
 export default function ClientStaffListPage() {
+  const staff = SAMPLE_STAFF.filter((s) => s.outlet === ASSIGNED_OUTLET);
+
   return (
     <div>
-      <PageHeading title="Staff" description="Read-only — Sample Outlet 1" />
+      <PageHeading title="Staff" description={`Read-only — ${ASSIGNED_OUTLET}`} />
 
       <div className="flex flex-col gap-3 sm:hidden">
-        {SAMPLE_STAFF.map((s) => (
+        {staff.map((s) => (
           <Link
             key={s.id}
             href={`/client/staff/${s.id}`}
@@ -48,7 +56,7 @@ export default function ClientStaffListPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {SAMPLE_STAFF.map((s) => (
+            {staff.map((s) => (
               <TableRow key={s.id}>
                 <TableCell className="text-foreground">{s.name}</TableCell>
                 <TableCell className="text-muted-foreground">{s.position}</TableCell>
