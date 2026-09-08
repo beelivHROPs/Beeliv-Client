@@ -47,6 +47,14 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   // Skip static assets and Next's own internals — no need to run this
-  // hostname check against them.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // hostname check against them. The bare "favicon.ico" exclusion only
+  // ever matched that one specific file; every other public/ asset (e.g.
+  // beeliv-logo-mark-hd.png) still fell through to the hostname check
+  // below and got rewritten to a nonexistent page, 404ing on
+  // client.beeliv.co even though the file is genuinely in the build.
+  // The trailing `.*\.[\w]+$` alternative excludes any path ending in a
+  // file extension (images, fonts, etc.) generally, not just today's
+  // known asset list, so a future-added public/ file doesn't hit this
+  // same bug again.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.[\\w]+$).*)"],
 };
