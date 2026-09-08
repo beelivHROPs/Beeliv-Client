@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeading } from "@/components/shared/PageHeading";
-import { Card } from "@/components/shared/Card";
+import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { SAMPLE_STAFF } from "@/lib/placeholder-data";
 
@@ -18,7 +18,15 @@ export async function generateMetadata({
   return { title: staff ? staff.name : "Staff Member" };
 }
 
-/** Client Staff Detail — read-only, no sensitive fields, no mutating controls. */
+/**
+ * Client Staff Detail — read-only, no sensitive fields, no mutating controls.
+ *
+ * Restyled onto the app's current design-system tokens/Card (spacing audit
+ * follow-up — this page still had the raw-gray/blue-600 prototype styling).
+ * Link tone uses --foreground (not --primary) matching this dashboard's own
+ * established "oversight, not control" convention (app/client/dashboard/
+ * page.tsx's viewLinkClass) rather than the purple used elsewhere.
+ */
 export default async function ClientStaffDetailPage({
   params,
 }: {
@@ -32,36 +40,41 @@ export default async function ClientStaffDetailPage({
   }
 
   return (
-    <div>
+    <div className="mx-auto max-w-3xl">
       <Link
         href="/client/staff"
-        className="text-sm font-medium text-blue-600 hover:underline"
+        className="text-sm font-medium text-[color:var(--foreground)] hover:underline"
       >
         ← Back to Staff
       </Link>
 
       <PageHeading title={staff.name} description={staff.position} />
 
-      <Card title="Profile (read-only)">
-        <dl className="space-y-1 text-sm">
-          <div className="flex justify-between">
-            <dt className="text-gray-500">Outlet</dt>
-            <dd className="text-gray-900">{staff.outlet}</dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-gray-500">Documentation</dt>
-            <dd>
-              <StatusBadge
-                label={staff.documentationStatus}
-                tone={
-                  staff.documentationStatus === "Complete"
-                    ? "success"
-                    : "warning"
-                }
-              />
-            </dd>
-          </div>
-        </dl>
+      <Card>
+        <CardContent>
+          <h2 className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Profile (read-only)
+          </h2>
+          <dl className="space-y-2 text-sm">
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Outlet</dt>
+              <dd className="font-medium text-foreground">{staff.outlet}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <dt className="text-muted-foreground">Documentation</dt>
+              <dd>
+                <StatusBadge
+                  label={staff.documentationStatus}
+                  tone={
+                    staff.documentationStatus === "Complete"
+                      ? "success"
+                      : "warning"
+                  }
+                />
+              </dd>
+            </div>
+          </dl>
+        </CardContent>
       </Card>
     </div>
   );

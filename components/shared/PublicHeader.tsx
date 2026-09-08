@@ -61,9 +61,14 @@ export function PublicHeader({
   glass?: boolean;
 }) {
   const pathname = usePathname();
+  // Anchor-scroll links (/#how-it-works, /#faq) aren't distinct routes —
+  // stripping their hash for comparison made them collapse to the same
+  // path as Home ("/"), so Home/How It Works/FAQ all rendered "active"
+  // simultaneously on the homepage (only "Open Positions", a real route,
+  // was behaving correctly). Anchor links now never show as active.
   const isNavActive = (href: string) => {
-    const path = href.split("#")[0] || "/";
-    return path === "/" ? pathname === "/" : pathname?.startsWith(path);
+    if (href.includes("#")) return false;
+    return href === "/" ? pathname === "/" : pathname?.startsWith(href);
   };
 
   return (
@@ -123,12 +128,12 @@ export function PublicHeader({
           light surface everywhere else (dark hero headline, text-primary
           Log In pill, no white logo badge needed). White nav text broke
           that and read as low-contrast/invisible — project-lead feedback. */}
-      <nav aria-label="Primary" className="relative hidden flex-1 items-center justify-center gap-2 sm:flex">
+      <nav aria-label="Primary" className="relative hidden flex-1 items-center justify-center gap-10 sm:flex">
         {PUBLIC_NAV_LINKS.map((link) => (
           <Link
             key={link.href}
             href={link.href}
-            className={`rounded-md px-4 py-2 text-base font-medium transition-colors ${
+            className={`rounded-md px-4 py-2 text-base font-bold transition-colors ${
               isNavActive(link.href)
                 ? "text-primary"
                 : "text-muted-foreground hover:text-foreground"
@@ -145,18 +150,17 @@ export function PublicHeader({
             spot Log In used to sit in, not a second control competing for
             the same corner). */}
         {showLogin ? (
+          // Solid purple, wider than before, and now the same on every
+          // public page — project-lead: "increase its width and change
+          // the color to purple" (it read as small/low-contrast white).
+          // Previously this differed between the glass homepage header
+          // (white pill) and every other page's plain outline button;
+          // one shared solid-purple treatment reads fine against both a
+          // translucent glass bar and a solid bg-card header, so the
+          // split is no longer needed.
           <Link
             href="/login"
-            className={
-              // Solid white, not a translucent glass pill — the earlier
-              // white/20-on-light-gradient version was too low-contrast for a
-              // control every one of the five roles actually needs (review
-              // feedback this session). Everything else in the header stays
-              // glass; this one control trades that in for legibility.
-              glass
-                ? "hidden rounded-lg border border-border bg-white px-3.5 py-1.5 text-sm font-semibold text-primary shadow-sm transition-shadow hover:shadow-md sm:inline-flex"
-                : `hidden sm:inline-flex ${buttonVariants({ variant: "outline", size: "sm" })}`
-            }
+            className="mr-8 hidden items-center justify-center rounded-lg bg-primary px-6 py-2 text-base font-bold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 sm:inline-flex sm:mr-10"
           >
             Log In
           </Link>

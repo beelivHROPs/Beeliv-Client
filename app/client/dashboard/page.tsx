@@ -86,6 +86,7 @@ export default function ClientDashboardPage() {
           <MetricCard
             key="staff"
             icon={Users}
+            iconTone="slate"
             label="Assigned Staff"
             value={<CountUp value={staffCount} />}
             caption={
@@ -97,6 +98,7 @@ export default function ClientDashboardPage() {
           <MetricCard
             key="documentation"
             icon={FileCheck2}
+            iconTone="slate"
             label="Documentation Completion"
             value={
               <>
@@ -115,6 +117,7 @@ export default function ClientDashboardPage() {
           <MetricCard
             key="attendance"
             icon={CalendarCheck2}
+            iconTone="slate"
             label="Attendance Overview"
             value={
               <>
@@ -133,6 +136,7 @@ export default function ClientDashboardPage() {
           <MetricCard
             key="payroll"
             icon={CalendarClock}
+            iconTone="slate"
             label="Payroll Schedule"
             value={nextPayrollDate}
             caption={
