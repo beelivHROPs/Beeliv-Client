@@ -21,6 +21,7 @@ import {
 // navigation to "/" then browser-native scroll-to-anchor).
 const PUBLIC_NAV_LINKS = [
   { label: "Home", href: "/" },
+  { label: "For Businesses", href: "/#for-businesses" },
   { label: "How It Works", href: "/#how-it-works" },
   { label: "Open Positions", href: "/positions" },
   { label: "FAQ", href: "/#faq" },
