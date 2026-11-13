@@ -1,60 +1,74 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { authConfig } from "@/lib/server/auth/config";
+import { parseSetup } from "@/lib/auth/setup-wire";
+import { canVisit, readAccess, type AuthApp } from "@/lib/server/auth/policy";
+import { RateFailure, rejectRpcRateLimit } from "@/lib/server/auth/rate";
 
-/**
- * This one app serves two different domains — the public recruitment site
- * (beeliv.co) and the authenticated Client dashboard (client.beeliv.co) —
- * per the project lead's confirmed subdomain architecture (2026-09-05).
- * Both domains point at this same Vercel deployment; this proxy (renamed
- * from "middleware" in Next.js 16 — see node_modules/next/dist/docs's own
- * migration note) is what actually separates them, since Next.js itself
- * has no concept of "this route only exists on that hostname."
- *
- * The Client dashboard routes stay under the "/client" prefix (unchanged
- * from the original shared-monorepo paths, and unchanged from
- * lib/nav-config.ts's hrefs) rather than being flattened to root-level
- * paths — client.beeliv.co/client/dashboard reads a little redundantly,
- * but it means zero internal links needed rewiring for this split. Worth
- * revisiting as a polish pass later, not a Stage 1 blocker.
- */
-const CLIENT_DASHBOARD_PREFIX = "/client";
-
-export function proxy(request: NextRequest) {
-  const host = request.headers.get("host") ?? "";
-  const isClientHost = host.startsWith("client.");
-  const { pathname } = request.nextUrl;
-
-  const isClientDashboardPath =
-    pathname === CLIENT_DASHBOARD_PREFIX || pathname.startsWith(`${CLIENT_DASHBOARD_PREFIX}/`);
-
-  if (isClientHost) {
-    // client.beeliv.co only ever serves the Client dashboard.
-    if (pathname === "/") {
-      return NextResponse.redirect(new URL("/client/dashboard", request.url));
+const publicSegments = new Set(["login","invite","forgot-password","reset-password","access-denied","account-suspended","first-setup"]);
+export async function proxy(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const first = path.split("/")[1];
+  const app: AuthApp = first === "client" ? "client" : first === "admin" ? "admin" : "talent";
+  const next = () => {
+    const forwarded = new Headers(request.headers);
+    // Overwrite hostile values; never forward the raw invitation token/path.
+    forwarded.set("x-beeliv-staff-surface", first === "staff" && publicSegments.has(path.split("/")[2]) ? "public-auth" : "protected");
+    return NextResponse.next({ request: { headers: forwarded } });
+  };
+  if (publicSegments.has(path.split("/")[2])) return next();
+  // Preserve authorised development design previews while schema is pending; never bypass in production.
+  if (process.env.AUTH_BACKEND_ENABLED !== "true" && process.env.NODE_ENV !== "production") return next();
+  let response = next();
+  response.headers.set("Cache-Control", "private, no-store");
+  try {
+    const config = authConfig(app);
+    if (request.nextUrl.origin !== config.origin) return NextResponse.json({ error: "This area is not available." }, { status: 403, headers: { "Cache-Control": "private, no-store" } });
+    const persist = request.cookies.get(config.rememberName)?.value === "true";
+    const client = createServerClient(config.url, config.key, {
+      cookieOptions: { name: config.cookieName, httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" },
+      cookies: {
+        getAll: () => request.cookies.getAll(),
+        setAll: values => {
+          for (const { name, value } of values) request.cookies.set(name, value);
+          response = next();
+          response.headers.set("Cache-Control", "private, no-store");
+          for (const { name, value, options } of values) response.cookies.set(name, value, { ...options, domain: undefined, httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", ...(value ? { maxAge: persist ? 60*60*24*30 : undefined, expires: undefined } : {}) });
+        },
+      },
+    });
+    const { data, error } = await client.auth.getUser();
+    if (error || !data.user || !data.user.email_confirmed_at) {
+      const login = app === "talent" ? "/login" : `/${app}/login`;
+      const redirect = NextResponse.redirect(new URL(`${login}?next=${encodeURIComponent(path+request.nextUrl.search)}`, config.origin));
+      for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+      redirect.headers.set("Cache-Control", "private, no-store");
+      return redirect;
     }
-    if (!isClientDashboardPath) {
-      return NextResponse.rewrite(new URL("/__not_found__", request.url));
+    const { data: context, error: contextError } = await client.rpc("auth_access_context", { p_app: app });
+    if (contextError) throw new Error("unavailable");
+    rejectRpcRateLimit(context);
+    if (!canVisit(readAccess(context, app), path)) {
+      const { data: rawSetup, error: setupError } = await client.rpc("auth_setup_context", { p_app: app });
+      if (setupError) throw new Error("unavailable");
+      rejectRpcRateLimit(rawSetup);
+      const setup = parseSetup({ ok: true, setup: rawSetup }, app);
+      if (setup.ok && setup.setup.state !== "suspended") {
+        const setupPath = app === "admin" ? "/admin/setup" : app === "client" ? "/client/setup" : "/staff";
+        const ownSetupPath = app === "talent" ? "/staff/setup" : setupPath;
+        if (path === setupPath || path === ownSetupPath || path.startsWith(ownSetupPath + "/") || (app === "talent" && path === "/staff/documents")) return response;
+        const redirect = NextResponse.redirect(new URL(setupPath, config.origin));
+        for (const cookie of response.cookies.getAll()) redirect.cookies.set(cookie);
+        redirect.headers.set("Cache-Control", "private, no-store");
+        return redirect;
+      }
+      return NextResponse.json({ error: "This area is not available." }, { status: 403, headers: { "Cache-Control": "private, no-store" } });
     }
-  } else {
-    // beeliv.co (and any other host, e.g. local dev) only ever serves the
-    // public recruitment site — the Client dashboard isn't reachable here.
-    if (isClientDashboardPath) {
-      return NextResponse.rewrite(new URL("/__not_found__", request.url));
-    }
+    return response;
+  } catch (error) {
+    if (error instanceof RateFailure) return NextResponse.json({ error: "Please wait before trying again." }, { status: 429, headers: { "Cache-Control": "private, no-store", "Retry-After": String(error.retryAfterSeconds) } });
+    return NextResponse.json({ error: "This area is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
-
-  return NextResponse.next();
 }
+export const config = { matcher: ["/applicant/:path*", "/staff/:path*", "/client/:path*", "/admin/:path*"] };
 
-export const config = {
-  // Skip static assets and Next's own internals — no need to run this
-  // hostname check against them. The bare "favicon.ico" exclusion only
-  // ever matched that one specific file; every other public/ asset (e.g.
-  // beeliv-logo-mark-hd.png) still fell through to the hostname check
-  // below and got rewritten to a nonexistent page, 404ing on
-  // client.beeliv.co even though the file is genuinely in the build.
-  // The trailing `.*\.[\w]+$` alternative excludes any path ending in a
-  // file extension (images, fonts, etc.) generally, not just today's
-  // known asset list, so a future-added public/ file doesn't hit this
-  // same bug again.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.[\\w]+$).*)"],
-};

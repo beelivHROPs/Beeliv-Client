@@ -1,35 +1,29 @@
-import { AppShell } from "@/components/layout/AppShell";
-import { NAV_ITEMS, ROLE_LABELS } from "@/lib/nav-config";
+import type { Metadata } from "next";
+import { newsreader } from "@/components/applicant/fonts";
+import { demoAttr } from "@/lib/dev-demo-flag";
+import "../applicant/applicant.css";
+import { ScreenScale } from "@/components/shared/ScreenScale";
+import "./client.css";
 
-// Force every /client/* route to render dynamically (per-request) instead
-// of being statically generated at build time. This repo (beeliv-client-app
-// specifically) serves two different hostnames — beeliv.co and
-// client.beeliv.co — from one deployment via proxy.ts's Host-header-based
-// routing, but proxy.ts only runs at REQUEST time; static generation at
-// build time has no Host header to route by at all. Confirmed live on
-// client.beeliv.co/client/dashboard: even a fully fresh deploy (Age: 0,
-// no CDN caching involved) served the wrong content — the public
-// homepage's markup instead of the dashboard's — pointing at a build-time
-// static-generation bug tied to this dual-domain setup, not a caching
-// issue. Forcing dynamic rendering means every request actually goes
-// through proxy.ts's routing before the page renders, eliminating the
-// static-shell-generated-without-host-context path entirely.
-export const dynamic = "force-dynamic";
+// Beeliv Client: an invited business/outlet oversight workspace (invitation
+// only, NO public sign-up). Same shell as the Applicant / Staff apps with its
+// own Warm Plum identity applied by tokens (client.css). Fonts: Karla (global)
+// + Newsreader, the same pair as the public site. Production target:
+// client.beeliv.co; built at /client in this repo for now.
+export const metadata: Metadata = {
+  title: { default: "Overview", template: "%s | Beeliv Client" },
+  robots: { index: false, follow: false },
+};
 
-export default function ClientLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function ClientLayout({ children }: LayoutProps<"/">) {
   return (
-    <AppShell
-      roleLabel={ROLE_LABELS.client}
-      scopeLabel="Sample Outlet 1"
-      navItems={NAV_ITEMS.client}
-      userName="Sample Business Contact"
-      navTone="slate"
-    >
+    <div {...demoAttr()} className={`ap-screen-zoom applicant-shell client-theme ${newsreader.variable}`}>
+      <ScreenScale />
+      {/* Reveals start hidden in the server HTML; without JS, show them. */}
+      <noscript>
+        <style>{`.applicant-shell [data-ap-reveal]{opacity:1!important;transform:none!important;clip-path:none!important}`}</style>
+      </noscript>
       {children}
-    </AppShell>
+    </div>
   );
 }
