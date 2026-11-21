@@ -43,7 +43,7 @@ export function WorkforceAnalytics({ f, clear }: { f: AnalyticsFilters; clear: (
     { key: "role", header: "Role", cell: (m) => m.role },
     { key: "dept", header: "Department", cell: (m) => DEPARTMENT_LABEL[m.departmentId] },
     { key: "outlet", header: "Outlet", cell: (m) => outletName(m.outletId) },
-    { key: "shift", header: "Shift", cell: (m) => SHIFTS[m.shift].label },
+    { key: "shift", header: "Shift", cell: (m) => SHIFTS[m.shift]?.label ?? "—" },
     { key: "start", header: "Started", cell: (m) => dayMonth(m.startDate) },
   ];
 
