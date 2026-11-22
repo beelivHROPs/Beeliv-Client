@@ -13,7 +13,12 @@ import { fromClient } from "@/lib/notifications/adapters";
 import type { SharedNotification } from "@/lib/notifications/types";
 import type { CandidateFeedbackInput, DateRange, ISODate, NewWorkforceRequest, OnboardingSave, OutletScope } from "./types";
 
-const adapter: ClientAnalyticsAdapter = process.env.NODE_ENV === "production" ? unavailableClientAdapter : mockClientAdapter;
+let adapter: ClientAnalyticsAdapter = process.env.NODE_ENV === "production" ? unavailableClientAdapter : mockClientAdapter;
+
+/** Live deployments: ClientLiveBoot switches to the REAL adapter (lib/client/adapters/live.ts) before any screen loads. */
+export function setRealClientAdapter(real: ClientAnalyticsAdapter) {
+  adapter = real;
+}
 
 export const subscribeClient: ClientAnalyticsAdapter["subscribe"] = (l) => {
   const a = adapter.subscribe(l);
