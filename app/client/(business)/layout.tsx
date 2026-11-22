@@ -1,4 +1,5 @@
 import { ClientLiveBoot } from "@/components/client/ClientLiveBoot";
+import { ClientLiveGate } from "@/components/client/ClientLiveGate";
 import { authMode } from "@/lib/auth/mode";
 import { sampleDataOn } from "@/lib/env/sample-data";
 import { ClientShell } from "@/components/client/ClientShell";
@@ -19,7 +20,9 @@ export default async function ClientBusinessLayout({ children }: LayoutProps<"/"
     return (
       <PilotMenuProvider on={pilot.on} devSwitch={pilot.devSwitch}>
         <ClientLiveBoot>
-          <ClientShell>{children}</ClientShell>
+          <ClientShell>
+            <ClientLiveGate>{children}</ClientLiveGate>
+          </ClientShell>
         </ClientLiveBoot>
       </PilotMenuProvider>
     );
