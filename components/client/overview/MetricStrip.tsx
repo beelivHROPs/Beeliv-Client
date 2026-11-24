@@ -27,8 +27,8 @@ export function MetricStrip({ ov }: { ov: ClientOverview }) {
     { key: "absent", label: "Absent", value: m.absent, sub: of(m.absent), href: attendanceHref({ status: "absent", date: "today" }), tone: m.absent > 0 ? "bad" : undefined },
     { key: "leave", label: "On leave", value: m.onLeave, sub: of(m.onLeave), href: attendanceHref({ status: "on-leave", date: "today" }) },
   ];
-  // Pilot menu, or live with no attendance backend yet: tiles that open a later-stage screen (Attendance) are left out
-  // (never a fake "0 present"); the strip keeps the rest.
+  // Pilot menu (or a live screen still Coming soon): tiles that open a later-stage screen are left out (never a fake
+  // "0 present"); the strip keeps the rest. Live attendance is real now (day1-assignment-client-shifts.sql), so it shows.
   const shown = cells.filter((c) => !pilotHidden(c.href) && !noData(c.href));
   const cols = ["", "min-[768px]:grid-cols-1", "min-[768px]:grid-cols-2", "min-[768px]:grid-cols-3", "min-[768px]:grid-cols-4", "min-[768px]:grid-cols-5"][shown.length];
   return (

@@ -5,7 +5,9 @@
  * approved design only, no sample, no prototype).
  * Real today (GET /api/client/portal): the user's own name/email, their outlets, and the staff placed there
  * (name, role, department, outlet, start date only - data-visibility-matrix).
- * Everything without a backend yet (attendance, schedules, candidates, requests, documents, payroll, notifications)
+ * Real since day1-assignment-client-shifts.sql (GET /api/client/shifts, ../shifts-live.ts): published shifts and check-ins,
+ * so Attendance, Schedules and the Overview attendance figures. An empty week is an empty state, never an error.
+ * Everything without a backend yet (candidates, requests, documents, payroll, notifications)
  * is EMPTY: the approved screens show their empty states or Coming soon (components/client/ClientLiveGate.tsx).
  * Nothing is invented. The Beeliv contact is the real support address (hello@beeliv.co, the Supabase/Resend sender).
  */
@@ -19,6 +21,8 @@ import type {
   WorkforceMember,
   WorkforceMemberDetail,
 } from "../types";
+import { coverage, liveShifts, scheduleEntries, scoped, summary, toRecords, trend, week, type MemberLookup } from "../shifts-live";
+import { addDays, startOfWeek, todayISO } from "../format";
 
 type PortalOutlet = { outletId: string; outletName: string; clientId: string; clientName: string; city: string };
 type PortalMember = { placementId: string; clientId: string; clientName: string; outletId: string; outletName: string; name: string; role: string; department: string; startDate: string; status: string };
@@ -88,8 +92,22 @@ async function session(): Promise<ClientSession> {
   };
 }
 
-const zero = (date: string) => ({ date, scheduled: 0, present: 0, late: 0, absent: 0, onLeave: 0, attendanceRate: 0 });
-const today = () => new Date().toISOString().slice(0, 10);
+/**
+ * A shift's person on the user's own staff list (placement id), so a record opens their staff page. Only when exactly one
+ * placed person at that outlet has that name; otherwise none (the record keeps its shift id and is never guessed).
+ */
+async function memberLookup(): Promise<MemberLookup> {
+  const p = await portal().catch(() => null);
+  const byKey = new Map<string, string | null>();
+  for (const m of p?.workforce ?? []) {
+    const key = `${m.outletId}|${String(m.name ?? "").trim().toLowerCase()}`;
+    byKey.set(key, byKey.has(key) ? null : m.placementId);
+  }
+  return (outletId, name) => byKey.get(`${outletId}|${name.trim().toLowerCase()}`) ?? null;
+}
+
+/** The local calendar day, the same "today" the screens use. */
+const today = () => todayISO();
 const listeners = new Set<(e: AdapterEvent) => void>();
 
 export const liveClientAdapter: ClientAnalyticsAdapter = {
@@ -99,28 +117,34 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
   },
   getSession: session,
   async getOverview(scope): Promise<ClientOverview> {
-    const [s, p] = await Promise.all([session(), portal()]);
+    const day = today();
+    const [s, p, shifts] = await Promise.all([session(), portal(), liveShifts(day, day)]);
+    const mine = scoped(shifts, scope);
     const outlet = scope === "all" ? null : (s.outlets.find((o) => o.id === scope) ?? null);
     return {
       scope,
       scopeLabel: outlet ? outlet.name : s.clientName && s.clientName !== MANY ? `All ${s.clientName} outlets` : "All your outlets",
       greetingName: s.user.firstName || "there",
       outlet,
-      metrics: { ...zero(today()), activeStaff: inScope(p.workforce, scope).length, openPositions: 0 },
-      checkedIn: 0,
+      metrics: { ...summary(day, mine), activeStaff: inScope(p.workforce, scope).length, openPositions: 0 },
+      // Members with a recorded check-in today (present or late), as decided by the database.
+      checkedIn: mine.filter((x) => x.date === day && (x.status === "present" || x.status === "late")).length,
       attention: [],
       team: TEAM,
     };
   },
-  getAttendanceSummary: async (_scope, date) => zero(date),
-  getAttendanceTrend: async () => [],
+  getAttendanceSummary: async (scope, date) => summary(date, scoped(await liveShifts(date, date), scope)),
+  getAttendanceTrend: async (scope, range) => trend(range, scoped(await liveShifts(range.from, range.to), scope)),
   async getWorkforceDistribution(scope): Promise<DepartmentCount[]> {
     const counts = new Map<DepartmentId, number>();
     for (const m of inScope((await portal()).workforce, scope)) counts.set(department(m.department), (counts.get(department(m.department)) ?? 0) + 1);
     return [...counts].map(([departmentId, count]) => ({ departmentId, label: DEPT_LABEL[departmentId], count }));
   },
-  getScheduleCoverage: async () => [],
-  getWeekSchedule: async () => [],
+  getScheduleCoverage: async (scope, date) => coverage(date, scoped(await liveShifts(date, date), scope)),
+  async getWeekSchedule(scope, weekOf) {
+    const first = startOfWeek(weekOf);
+    return week(weekOf, scoped(await liveShifts(first, addDays(first, 6)), scope));
+  },
   getRecruitmentSummary: async () => ({ awaitingFeedback: 0, openPositions: 0, positions: [] }),
   getComplianceSummary: async () => ({ total: 0, complete: 0, outstanding: 0, updateRequired: 0, expiringSoon: 0, percentComplete: 0, attention: [] }),
   getPayrollVisibility: async () => ({ upcoming: [], history: [] }),
@@ -130,7 +154,10 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
   markAllNotificationsRead: async () => undefined,
   deleteNotification: async () => undefined,
   getWorkforce: async (scope) => inScope((await portal()).workforce, scope).map(member),
-  getAttendanceRecords: async () => [],
+  async getAttendanceRecords(scope, range) {
+    const [items, lookup] = await Promise.all([liveShifts(range.from, range.to), memberLookup()]);
+    return toRecords(scoped(items, scope), lookup);
+  },
   getCandidates: async () => [],
   getWorkforceRequests: async () => [],
   getDocuments: async () => [],
@@ -148,7 +175,11 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
       history: [],
     };
   },
-  getSchedule: async () => ({ canEdit: false, shifts: [] }),
+  // Read-only: the Client's edit permission is a Beeliv decision that is still open.
+  async getSchedule(scope, range) {
+    const [items, lookup] = await Promise.all([liveShifts(range.from, range.to), memberLookup()]);
+    return { canEdit: false, shifts: scheduleEntries(scoped(items, scope), lookup) };
+  },
   getCandidate: async () => null,
   submitCandidateFeedback: async () => {
     throw new Error(NOT_CONNECTED);
