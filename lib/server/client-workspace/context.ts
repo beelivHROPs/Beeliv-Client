@@ -16,7 +16,7 @@ async function verifiedClientActor() {
   const access = await client.rpc("auth_access_context", { p_app: "client" });
   const context = readAccess(access.data, "client");
   if (access.error || !hasAccess(context) || context?.role !== "client") throw new Error("client_workspace_unavailable");
-  await limitAuth("client", "setup_read", user.id);
+  await limitAuth("client", "org_read", `client-portal:${user.id}`);
   return { uid: user.id, email: user.email ?? "", sessionId: claims.session_id as string };
 }
 
@@ -69,7 +69,7 @@ export async function readClientWorkspace(): Promise<ClientWorkspace> {
   const access = await client.rpc("auth_access_context", { p_app: "client" });
   const context = readAccess(access.data, "client");
   if (access.error || !hasAccess(context) || context?.role !== "client") throw new Error("client_workspace_unavailable");
-  await limitAuth("client", "setup_read", user.id);
+  await limitAuth("client", "org_read", `client-portal:${user.id}`);
   const { data, error } = await adminClient("client").rpc("client_workspace_context", { p_actor_uid: user.id, p_session_id: claims.session_id });
   if (error || data?.ok !== true || typeof data.fullName !== "string" || !Array.isArray(data.scopes) || data.scopes.length > 100 || typeof data.truncated !== "boolean") throw new Error("client_workspace_unavailable");
   const scopes = data.scopes.map((item: { clientName?: unknown; outletName?: unknown }) => {
