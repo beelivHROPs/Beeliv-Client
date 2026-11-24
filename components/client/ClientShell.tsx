@@ -55,7 +55,7 @@ import { UserPlus } from "./icons";
 import { CLIENT_NAV, CLIENT_NOTIFICATIONS_HREF, CLIENT_SETTINGS, isNavActive, MORE_ROUTES } from "./nav";
 import { PilotNotice } from "@/components/shared/PilotNotice";
 import { usePilotMenu } from "@/lib/pilot/context";
-import { PILOT_MOBILE_PRIMARY, pilotFilter } from "@/lib/pilot/menu";
+import { pilotFilter } from "@/lib/pilot/menu";
 
 export const CLIENT_THEME = `applicant-shell client-theme ${newsreader.variable}`;
 const THEME = CLIENT_THEME;
@@ -471,9 +471,10 @@ function MobileBottomNav({ pathname, moreActive, unread, counts, session, outlet
   const setOpen = useCallback((v: boolean) => setOpenAt(v ? pathname : null), [pathname]);
   const closeMore = useCallback(() => setOpenAt(null), []);
   const signOut = useSignOut();
-  // Pilot menu: the usual bar leans on Attendance and Recruitment, so it becomes Overview, Workforce, Requests (no raised centre).
+  // Lead 2026-11-24: always the approved 5-tab bar, same as localhost - Overview, Workforce, Attendance (raised centre),
+  // Recruitment, More. The 3-tab pilot bar left the centre notch empty.
   const pilot = usePilotMenu();
-  const primary = pilot ? PILOT_MOBILE_PRIMARY.client.map((h) => CLIENT_NAV.find((i) => i.href === h)).filter((i): i is (typeof CLIENT_NAV)[number] => !!i) : CLIENT_NAV.filter((i) => i.mobilePrimary);
+  const primary = CLIENT_NAV.filter((i) => i.mobilePrimary);
   const moreItems = [...pilotFilter(CLIENT_NAV, pilot).filter((i) => !primary.includes(i)), CLIENT_SETTINGS];
   const moreCount = moreItems.reduce((n, i) => n + (counts[i.href] ?? 0), 0);
 
@@ -481,7 +482,7 @@ function MobileBottomNav({ pathname, moreActive, unread, counts, session, outlet
     <>
       <BottomNavBar label="Client navigation">
         {primary.map((item, i) => (
-          <BottomNavLink key={item.href} href={item.href} icon={item.icon} label={item.short ?? item.label} active={isNavActive(pathname, item.href)} center={!pilot && i === 2} quiet={!pilot && i === 2} count={counts[item.href] ?? 0} pillId="client-bnav-pill" />
+          <BottomNavLink key={item.href} href={item.href} icon={item.icon} label={item.short ?? item.label} active={isNavActive(pathname, item.href)} center={i === 2} quiet={i === 2} count={counts[item.href] ?? 0} pillId="client-bnav-pill" />
         ))}
         <BottomNavButton onClick={() => setOpen(true)} icon={Menu} label="More" active={moreActive} count={moreCount} pillId="client-bnav-pill" />
       </BottomNavBar>
