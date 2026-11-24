@@ -11,6 +11,7 @@ import { attendanceHref, NEW_REQUEST_HREF } from "@/lib/client/links";
 import type { ClientOverview } from "@/lib/client/types";
 import { SHIFTS } from "@/lib/client/labels";
 import { usePilotHidden } from "@/lib/pilot/context";
+import { useLiveNoData } from "../ClientLiveBoot";
 import { PersonPhoto } from "../PersonPhoto";
 import { AttendanceChip } from "../StatusChip";
 
@@ -26,7 +27,10 @@ export function PhoneHome({ ov }: { ov: ClientOverview }) {
   const today = todayISO();
   const { data } = useAttendanceRecords(today, today);
   const onShift = useMemo(() => (data ?? []).filter((r) => r.clockIn !== null), [data]);
-  const attHidden = hidden(attendanceHref());
+  const noData = useLiveNoData();
+  // Live: attendance and recruitment have no backend yet, so their tiles are left out (never a fake 0).
+  const attHidden = hidden(attendanceHref()) || noData(attendanceHref());
+  const recHidden = noData("/client/recruitment");
 
   return (
     <div className="flex flex-col gap-5 min-[768px]:hidden">
@@ -56,9 +60,10 @@ export function PhoneHome({ ov }: { ov: ClientOverview }) {
         </section>
       ) : null}
 
+      {attHidden && recHidden ? null : (
       <section aria-label="At a glance" className="grid grid-cols-2 gap-3">
         {attHidden ? null : (
-          <Link href={attendanceHref({ date: "today" })} className={`flex min-h-[132px] flex-col justify-between rounded-[22px] p-4 ${TONE.sand}`}>
+          <Link href={attendanceHref({ date: "today" })} className={`flex min-h-[132px] flex-col justify-between rounded-[22px] p-4 ${TONE.sand} ${recHidden ? "col-span-2" : ""}`}>
             <IconDisc icon={Clock3} size={40} />
             <span>
               <b className="block text-[32px] leading-none font-bold text-(--ap-ink) tabular-nums">{ov.checkedIn}</b>
@@ -68,6 +73,7 @@ export function PhoneHome({ ov }: { ov: ClientOverview }) {
             </span>
           </Link>
         )}
+        {recHidden ? null : (
         <Link href="/client/recruitment" className={`flex min-h-[132px] flex-col justify-between rounded-[22px] p-4 ${TONE.lavender} ${attHidden ? "col-span-2" : ""}`}>
           <IconDisc icon={Briefcase} size={40} />
           <span>
@@ -77,7 +83,9 @@ export function PhoneHome({ ov }: { ov: ClientOverview }) {
             </span>
           </span>
         </Link>
+        )}
       </section>
+      )}
 
       {attHidden || onShift.length === 0 ? null : (
         <section aria-label="Staff on shift">
@@ -94,7 +102,7 @@ export function PhoneHome({ ov }: { ov: ClientOverview }) {
                 <span className="min-w-0 flex-1 leading-tight">
                   <b className="block truncate text-[15px]">{r.staffName}</b>
                   <span className="block truncate text-[13px] text-(--ap-muted)">
-                    {r.role} &middot; {SHIFTS[r.shift].label}
+                    {r.role} &middot; {(SHIFTS[r.shift]?.label ?? "—")}
                   </span>
                 </span>
                 <AttendanceChip status={r.status} />

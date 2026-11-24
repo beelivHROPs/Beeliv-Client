@@ -92,7 +92,7 @@ export function WorkforceToday({ className = "" }: { className?: string }) {
                         <td className="py-2.5 pr-3 text-(--ap-ink-2)">{r.role}</td>
                         <td className="py-2.5 pr-3 text-(--ap-ink-2) max-[1100px]:hidden">{DEPARTMENT_LABEL[r.departmentId]}</td>
                         <td className="py-2.5 pr-3 whitespace-nowrap text-(--ap-ink-2)">
-                          {SHIFTS[r.shift].label}
+                          {(SHIFTS[r.shift]?.label ?? "—")}
                           {r.clockIn ? <span className="block text-[12px] text-(--ap-muted)">In {formatClock(r.clockIn)}</span> : null}
                         </td>
                         <td className="py-2.5 text-right">
@@ -112,7 +112,7 @@ export function WorkforceToday({ className = "" }: { className?: string }) {
                     <span className="min-w-0 flex-1 leading-tight">
                       <b className="block truncate text-[15px]">{r.staffName}</b>
                       <span className="block truncate text-[13px] text-(--ap-muted)">
-                        {r.role} &middot; {SHIFTS[r.shift].label}
+                        {r.role} &middot; {(SHIFTS[r.shift]?.label ?? "—")}
                       </span>
                     </span>
                     <AttendanceChip status={r.status} />

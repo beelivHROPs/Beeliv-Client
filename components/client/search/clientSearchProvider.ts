@@ -133,7 +133,7 @@ export function buildClientSearchProvider(scope: OutletScope | null, ctx: Client
       const tasks: Promise<SearchEntry[]>[] = [
         Promise.resolve(pageEntries(PAGES)),
         service.getWorkforce(scope).then((rows) =>
-          rows.map((m) => ({ id: m.id, group: "people", title: m.name, subtitle: join(m.role, DEPARTMENT_LABEL[m.departmentId], outletName(m.outletId)), href: staffHref(m.id), icon: UsersRound, keys: [m.staffId], person: true })),
+          rows.map((m) => ({ id: m.id, group: "people", title: m.name, subtitle: join(m.role, DEPARTMENT_LABEL[m.departmentId], outletName(m.outletId)), href: staffHref(m.id), icon: UsersRound, keys: m.staffId ? [m.staffId] : [], person: true })),
         ),
         service.getCandidates(scope).then((rows) =>
           rows.map((c) => ({ id: c.id, group: "candidates", title: c.name, subtitle: join(c.position, outletName(c.outletId)), href: `/client/recruitment/${c.id}`, icon: BriefcaseBusiness, keys: c.skills, status: c.feedback ? human(c.feedback) : "Awaiting feedback", person: true })),

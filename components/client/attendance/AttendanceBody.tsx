@@ -462,7 +462,7 @@ function Records({ rows, total, shown, onMore, showDate, showOutlet, outletName,
                     <td className="py-2.5 pr-3 text-(--ap-ink-2)">{r.role}</td>
                     <td className="py-2.5 pr-3 whitespace-nowrap text-(--ap-ink-2) max-[1100px]:hidden">{DEPARTMENT_LABEL[r.departmentId]}</td>
                     {showOutlet ? <td className="py-2.5 pr-3 whitespace-nowrap text-(--ap-ink-2) max-[1240px]:hidden">{outletName(r.outletId)}</td> : null}
-                    <td className="py-2.5 pr-3 whitespace-nowrap text-(--ap-ink-2)">{SHIFTS[r.shift].label}</td>
+                    <td className="py-2.5 pr-3 whitespace-nowrap text-(--ap-ink-2)">{(SHIFTS[r.shift]?.label ?? "—")}</td>
                     <td className="py-2.5 pr-3 whitespace-nowrap text-(--ap-ink-2) tabular-nums">{r.clockIn ? formatClock(r.clockIn) : <span className="text-(--ap-faint)">-</span>}</td>
                     <td className="py-2.5 text-right">
                       <AttendanceChip status={r.status} />

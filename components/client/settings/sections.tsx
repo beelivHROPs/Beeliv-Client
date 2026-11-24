@@ -16,7 +16,7 @@ import { toast } from "@/components/ui/toast";
 import { isRequired, type EventCode } from "@/lib/notifications/catalog";
 import { toggleSetting, useApplicantSettings } from "@/lib/applicant/settings";
 import { DEV_ACTIVE_SESSIONS } from "@/lib/client/dev-sessions";
-import { fullDate } from "@/lib/client/format";
+import { fullDate, maybeDate } from "@/lib/client/format";
 import { ALL_SCOPE } from "@/lib/client/outlet";
 import { setWorkspacePrefs, useWorkspacePrefs, type DefaultRange } from "@/lib/client/preferences";
 import { saveOnboarding } from "@/lib/client/service";
@@ -25,6 +25,7 @@ import type { AgreementAck, BeelivTeam, ClientContactDetails, ClientSession, Not
 import type { ThemeMode } from "@/lib/shared/theme";
 import { SoundSettingsRows } from "@/components/admin/settings/SoundSettings";
 import { ClientAvatar } from "../ClientAvatar";
+import { useClientLive } from "../ClientLiveBoot";
 import { AccessSummary, detailsErrors } from "../setup/SetupSteps";
 
 /** Settings sections (project lead, 2026-09-30, locked spec). Each is a SectionCard so the page reads the same as Applicant / Staff Settings. */
@@ -59,6 +60,7 @@ function preview(action: string) {
 /* ------------------------------------------------------------- 1 Profile */
 
 export function ProfileSection({ details, session }: { details: ClientContactDetails; session: ClientSession }) {
+  const live = useClientLive();
   const [draft, setDraft] = useState(details);
   const [tried, setTried] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -116,8 +118,8 @@ export function ProfileSection({ details, session }: { details: ClientContactDet
           <Field label="Phone number" htmlFor="set-phone" error={err.phone}>
             <PhoneInput quiet id="set-phone" value={draft.phone} onChange={(v) => set("phone", v)} invalid={Boolean(err.phone)} />
           </Field>
-          <Field label="Email" htmlFor="set-email" hint="Managed by your Beeliv sign-in.">
-            <input id="set-email" className={INPUT_CLS} readOnly value={session.user.email ?? "Not available yet"} />
+          <Field label="Email" htmlFor="set-email" hint={live ? "This is your sign-in email. To change it, contact Beeliv." : "Managed by your Beeliv sign-in."}>
+            <input id="set-email" className={INPUT_CLS} readOnly value={session.user.email || "Not available yet"} />
           </Field>
         </FormGrid>
         <div className="mt-5 flex justify-end max-[640px]:[&>button]:w-full">
@@ -127,10 +129,10 @@ export function ProfileSection({ details, session }: { details: ClientContactDet
         </div>
       </form>
       <div className="mt-3 border-t border-(--ap-line-2)">
-        <Row title="Company" detail={session.clientName}>
+        <Row title="Company" detail={session.clientName || "Not available yet"}>
           <Managed />
         </Row>
-        <Row title="Client ID" detail={session.clientId ?? "Not available yet"}>
+        <Row title="Client ID" detail={session.clientId || "Not available yet"}>
           <Managed />
         </Row>
         <Row title="Client role" detail={level}>
@@ -148,6 +150,8 @@ export function ProfileSection({ details, session }: { details: ClientContactDet
 
 export function SecuritySection({ onSignOut }: { onSignOut: () => void }) {
   const liveAuth = useAuthLive();
+  const live = useClientLive();
+  if (live) return <LiveSecuritySection onSignOut={onSignOut} />;
   if (liveAuth || process.env.NODE_ENV === "production") return <AccountSecurityActions onSignOut={onSignOut} />;
   return (
     <SectionCard id="s-security" title="Security">
@@ -181,6 +185,32 @@ export function SecuritySection({ onSignOut }: { onSignOut: () => void }) {
           ))}
         </ul>
       </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-(--ap-line-2) pt-4">
+        <p className="ap-sm flex min-w-0 flex-1 items-start gap-2">
+          <LockKeyhole className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          Sign out of Beeliv on this device. Your information stays saved.
+        </p>
+        <button type="button" onClick={onSignOut} className={`ap-btn ap-btn-s max-[640px]:w-full ${FOCUS}`}>
+          <LogOut className="size-4" aria-hidden="true" /> Sign out
+        </button>
+      </div>
+    </SectionCard>
+  );
+}
+
+/**
+ * Live Client security: only real paths. "Change password" opens the Client password-reset flow (it emails a reset
+ * link to the sign-in email); the sign-in email itself is changed by Beeliv (Account & profile says so). No preview
+ * toasts, no sample sessions.
+ */
+function LiveSecuritySection({ onSignOut }: { onSignOut: () => void }) {
+  return (
+    <SectionCard id="s-security" title="Security">
+      <Row title="Password" detail="We'll email a secure link to your sign-in email so you can set a new password.">
+        <Link href="/client/forgot-password" className={`${BTN_LINK} shrink-0`}>
+          Change password
+        </Link>
+      </Row>
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-(--ap-line-2) pt-4">
         <p className="ap-sm flex min-w-0 flex-1 items-start gap-2">
           <LockKeyhole className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
@@ -239,7 +269,7 @@ export function NotificationsSection({ prefs }: { prefs: NotificationPrefs }) {
   }
   const rows = (list: PrefRow[]) => list.map((r) => (
     <Row key={r.key} title={r.label} detail={r.detail}>
-      {r.event && isRequired(r.event) ? <AlwaysSent label={r.label} /> : <Switch on={prefs[r.key]} label={r.label} onClick={() => set(r.key)} />}
+      {r.event && isRequired(r.event) ? <AlwaysSent label={r.label} /> : <Switch on={prefs[r.key] === true} label={r.label} onClick={() => set(r.key)} />}
     </Row>
   ));
   return (
@@ -354,10 +384,10 @@ export function AccessSection({ session }: { session: ClientSession }) {
   const primary = session.outlets.find((o) => o.id === session.primaryOutletId);
   return (
     <SectionCard id="s-access" title="Access & organisation">
-      <Row title="Company" detail={session.clientName}>
+      <Row title="Company" detail={session.clientName || "Not available yet"}>
         <Managed />
       </Row>
-      <Row title="Client ID" detail={session.clientId ?? "Not available yet"}>
+      <Row title="Client ID" detail={session.clientId || "Not available yet"}>
         <Managed />
       </Row>
       <Row title="Access level" detail={session.accessLevel ?? "Client"}>
@@ -384,6 +414,8 @@ export function AccessSection({ session }: { session: ClientSession }) {
 /* ------------------------------------------------ 7 Privacy & agreements */
 
 export function PrivacySection({ agreements }: { agreements: AgreementAck[] }) {
+  // Live: accepted agreements are not served to this screen yet, so say so instead of "No agreements on your account".
+  const live = useClientLive();
   return (
     <SectionCard id="s-privacy" title="Privacy & agreements">
       {/* TBD: the public Privacy Policy / Terms of Service pages do not exist yet - no dead links. */}
@@ -395,10 +427,10 @@ export function PrivacySection({ agreements }: { agreements: AgreementAck[] }) {
       </Row>
       <h3 className="ap-label mt-4 mb-0.5 font-bold text-(--ap-muted) uppercase">Accepted agreements</h3>
       {agreements.length === 0 ? (
-        <p className="ap-bd py-2 text-(--ap-muted)">No agreements on your account.</p>
+        <p className="ap-bd py-2 text-(--ap-muted)">{live ? "Your accepted agreements will show here soon." : "No agreements on your account."}</p>
       ) : (
         agreements.map((a) => (
-          <Row key={a.id} title={a.title} detail={a.acknowledged ? `${a.version ? `Version ${a.version} · ` : ""}${a.acknowledgedAt ? `Accepted ${fullDate(a.acknowledgedAt.slice(0, 10))}` : "Accepted"}` : "Not accepted yet"}>
+          <Row key={a.id} title={a.title} detail={a.acknowledged ? `${a.version ? `Version ${a.version} · ` : ""}${maybeDate(a.acknowledgedAt, (d) => `Accepted ${fullDate(d)}`, "Accepted")}` : "Not accepted yet"}>
             {a.acknowledged ? (
               <span className="ap-label shrink-0 font-bold text-(--ap-ok)">Accepted</span>
             ) : (
