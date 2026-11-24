@@ -5,7 +5,7 @@ import { ArrowUpLeft, CircleHelp, FileText, ShieldCheck } from "@/components/app
 import { EmptyState } from "@/components/applicant/primitives";
 import { ErrorPanel } from "@/components/staff/ErrorPanel";
 import { useWorkforceMemberDetail } from "@/lib/client/hooks";
-import { dayMonth, formatClock, formatClockRange, formatPercent, fullDate, parseDate, todayISO, weekday } from "@/lib/client/format";
+import { dayMonth, formatClock, formatClockRange, formatPercent, fullDate, isDate, maybeDate, NOT_SET, parseDate, todayISO, weekday } from "@/lib/client/format";
 import { DEPARTMENT_LABEL, SHIFTS } from "@/lib/client/labels";
 import { workforceHref } from "@/lib/client/links";
 import type { ComplianceItem, ComplianceState } from "@/lib/client/types";
@@ -14,6 +14,7 @@ import { PersonPhoto } from "../PersonPhoto";
 import { AttendanceChip, StatusChip, type ChipTone } from "../StatusChip";
 import { AnalyticsPanel } from "../charts";
 import { ClientDocumentActions } from "../compliance/DocumentActions";
+import { useClientLive } from "../ClientLiveBoot";
 
 const COMPLIANCE_LABEL: Record<ComplianceState, string> = { complete: "Complete", outstanding: "Outstanding", "update-required": "Update required", expiring: "Expiring soon" };
 const COMPLIANCE_TONE: Record<ComplianceState, ChipTone> = { complete: "ok", outstanding: "bad", "update-required": "warn", expiring: "warn" };
@@ -27,6 +28,9 @@ const BACK = (
 );
 
 const SK = "ap-shimmer rounded-2xl";
+const NOTE = "rounded-xl bg-(--ap-tint-soft) px-4 py-6 text-center text-[14px] text-(--ap-muted)";
+/** A day label for a list row ("Today" / "Tue 4 Nov"), or a dash when the record has no usable date. */
+const dayLabel = (d: string, today: string) => (d === today ? "Today" : isDate(d) ? `${weekday(d)} ${dayMonth(d)}` : "—");
 
 function DetailSkeleton() {
   return (
@@ -63,6 +67,9 @@ function overall(docs: ComplianceItem[]): ComplianceState | null {
  */
 export function StaffDetailBody({ id }: { id: string }) {
   const { data, status, retry } = useWorkforceMemberDetail(id);
+  // Live: attendance, schedules and documents have no Beeliv backend yet, so those panels say "Coming soon"
+  // instead of an empty period that reads like a real record.
+  const live = useClientLive();
 
   if (status === "loading") return <DetailSkeleton />;
   if (status === "error" || status === "restricted") {
@@ -90,15 +97,17 @@ export function StaffDetailBody({ id }: { id: string }) {
 
   const { member: m, attendance: a } = data;
   const today = todayISO();
+  const firstName = m.name.trim().split(/\s+/)[0] || "this person";
   const facts: [string, string][] = [
-    ["Client", data.clientName],
-    ["Outlet", data.outletName],
-    ["Role", m.role],
-    ["Department", DEPARTMENT_LABEL[m.departmentId]],
-    ["Start date", fullDate(m.startDate)],
-    ["Usual shift", `${SHIFTS[m.shift].label} (${formatClockRange(SHIFTS[m.shift].start, SHIFTS[m.shift].end)})`],
+    ["Client", data.clientName || NOT_SET],
+    ["Outlet", data.outletName || NOT_SET],
+    ["Role", m.role || NOT_SET],
+    ["Department", DEPARTMENT_LABEL[m.departmentId] ?? NOT_SET],
+    ["Start date", maybeDate(m.startDate, fullDate)],
+    ["Usual shift", SHIFTS[m.shift] ? `${SHIFTS[m.shift].label} (${formatClockRange(SHIFTS[m.shift].start, SHIFTS[m.shift].end)})` : NOT_SET],
   ];
   const overallState = overall(data.documents);
+  const period = isDate(a.from) && isDate(a.to) ? `Last 30 days, ${dayMonth(a.from)} - ${dayMonth(a.to)}` : "Last 30 days";
   const tiles: { label: string; value: number; tone: string }[] = [
     { label: "Present", value: a.present, tone: "text-(--ap-ok)" },
     { label: "Late", value: a.late, tone: "text-(--ap-warn)" },
@@ -115,14 +124,14 @@ export function StaffDetailBody({ id }: { id: string }) {
           <div className="min-w-0 flex-1">
             <h1 className="text-[26px] leading-tight font-bold text-(--ap-ink) min-[768px]:text-[30px]">{m.name}</h1>
             <p className="mt-1 text-[15px] text-(--ap-muted)">
-              {m.role} &middot; {DEPARTMENT_LABEL[m.departmentId]} &middot; {data.outletName}
+              {[m.role, DEPARTMENT_LABEL[m.departmentId], data.outletName].filter(Boolean).join(" · ")}
             </p>
-            <p className="mt-0.5 text-[13px] text-(--ap-muted) tabular-nums">{m.staffId}</p>
+            {m.staffId ? <p className="mt-0.5 text-[13px] text-(--ap-muted) tabular-nums">{m.staffId}</p> : null}
           </div>
           <StatusChip tone={m.assignmentStatus === "active" ? "ok" : "mute"}>{m.assignmentStatus === "active" ? "Active" : "Ended"}</StatusChip>
           {/* Contact goes through Beeliv: staff phone numbers are not on the Client-visible list (Master Spec 24.5 / 29.3). */}
           <Link href="/client/support?reason=Staff%20concern" className="ap-btn ap-btn-s ap-btn-sm max-[767px]:hidden">
-            Contact Beeliv about {m.name.split(" ")[0]}
+            Contact Beeliv about {firstName}
           </Link>
         </header>
 
@@ -144,9 +153,11 @@ export function StaffDetailBody({ id }: { id: string }) {
             </dl>
           </AnalyticsPanel>
 
-          <AnalyticsPanel title="Attendance summary" subtitle={`Last 30 days, ${dayMonth(a.from)} - ${dayMonth(a.to)}`}>
-            {a.scheduled === 0 ? (
-              <p className="rounded-xl bg-(--ap-tint-soft) px-4 py-6 text-center text-[14px] text-(--ap-muted)">No attendance recorded for this period yet.</p>
+          <AnalyticsPanel title="Attendance summary" subtitle={live ? undefined : period}>
+            {live ? (
+              <p className={NOTE}>Attendance records are coming soon.</p>
+            ) : !a.scheduled ? (
+              <p className={NOTE}>No attendance recorded for this period yet.</p>
             ) : (
               <>
                 <div className="grid grid-cols-4 gap-2">
@@ -165,7 +176,7 @@ export function StaffDetailBody({ id }: { id: string }) {
                   {data.recentAttendance.map((r) => (
                     <li key={r.id} className="flex items-center gap-3 border-t border-(--ap-line-2) py-2 first:border-t-0">
                       <span className="w-[92px] shrink-0 text-[14px] text-(--ap-ink-2)">
-                        {r.date === today ? "Today" : `${weekday(r.date)} ${dayMonth(r.date)}`}
+                        {dayLabel(r.date, today)}
                       </span>
                       <span className="min-w-0 flex-1 truncate text-[13px] text-(--ap-muted)">{r.clockIn ? `In ${formatClock(r.clockIn)}` : "No clock-in"}</span>
                       <AttendanceChip status={r.status} />
@@ -176,15 +187,17 @@ export function StaffDetailBody({ id }: { id: string }) {
             )}
           </AnalyticsPanel>
 
-          <AnalyticsPanel title="Upcoming schedule" subtitle="The next 7 days">
-            {data.upcomingSchedule.length === 0 ? (
-              <p className="rounded-xl bg-(--ap-tint-soft) px-4 py-6 text-center text-[14px] text-(--ap-muted)">No upcoming shifts are scheduled.</p>
+          <AnalyticsPanel title="Upcoming schedule" subtitle={live ? undefined : "The next 7 days"}>
+            {live ? (
+              <p className={NOTE}>Schedules are coming soon.</p>
+            ) : data.upcomingSchedule.length === 0 ? (
+              <p className={NOTE}>No upcoming shifts are scheduled.</p>
             ) : (
               <ul className="m-0 flex list-none flex-col p-0">
                 {data.upcomingSchedule.map((s) => (
                   <li key={s.date} className="flex items-center gap-3 border-t border-(--ap-line-2) py-2.5 first:border-t-0">
-                    <span className="w-[92px] shrink-0 text-[14px] text-(--ap-ink-2)">{s.date === today ? "Today" : `${weekday(s.date)} ${dayMonth(s.date)}`}</span>
-                    <b className="min-w-0 flex-1 truncate text-[14px] font-semibold text-(--ap-ink)">{SHIFTS[s.shift].label}<span className="max-[767px]:hidden"> shift</span></b>
+                    <span className="w-[92px] shrink-0 text-[14px] text-(--ap-ink-2)">{dayLabel(s.date, today)}</span>
+                    <b className="min-w-0 flex-1 truncate text-[14px] font-semibold text-(--ap-ink)">{(SHIFTS[s.shift]?.label ?? "—")}<span className="max-[767px]:hidden"> shift</span></b>
                     <span className="shrink-0 text-[13px] text-(--ap-muted)">{formatClockRange(s.start, s.end).replace(/ - /g, " – ")}</span>
                   </li>
                 ))}
@@ -193,8 +206,10 @@ export function StaffDetailBody({ id }: { id: string }) {
           </AnalyticsPanel>
 
           <AnalyticsPanel title="Compliance and documents" subtitle="Approved operational documents only">
-            {data.documents.length === 0 ? (
-              <p className="rounded-xl bg-(--ap-tint-soft) px-4 py-6 text-center text-[14px] text-(--ap-muted)">No operational documents are shared with you for this person.</p>
+            {live ? (
+              <p className={NOTE}>Shared documents are coming soon.</p>
+            ) : data.documents.length === 0 ? (
+              <p className={NOTE}>No operational documents are shared with you for this person.</p>
             ) : (
               <>
                 {overallState ? (
@@ -210,7 +225,7 @@ export function StaffDetailBody({ id }: { id: string }) {
                       </span>
                       <span className="min-w-0 flex-1 leading-tight">
                         <b className="block truncate text-[14.5px] font-semibold text-(--ap-ink)">{d.document}</b>
-                        {d.expiresOn ? <span className="block text-[13px] text-(--ap-muted)">Expires {dayMonth(d.expiresOn)}</span> : null}
+                        {isDate(d.expiresOn) ? <span className="block text-[13px] text-(--ap-muted)">Expires {dayMonth(d.expiresOn)}</span> : null}
                         {d.state !== "outstanding" ? <ClientDocumentActions ownerId={d.memberId} ownerName={d.staffName} documentType={d.document} className="mt-1.5" /> : null}
                       </span>
                       <span className="max-[767px]:ml-12 max-[767px]:w-full"><StatusChip tone={COMPLIANCE_TONE[d.state]}>{COMPLIANCE_LABEL[d.state]}</StatusChip></span>
@@ -229,22 +244,23 @@ export function StaffDetailBody({ id }: { id: string }) {
                     <b className="block text-[14.5px] font-semibold text-(--ap-ink)">
                       {h.role} &middot; {h.outletName}
                     </b>
-                    <span className="block text-[13px] text-(--ap-muted)">{DEPARTMENT_LABEL[h.departmentId]}</span>
+                    {DEPARTMENT_LABEL[h.departmentId] ? <span className="block text-[13px] text-(--ap-muted)">{DEPARTMENT_LABEL[h.departmentId]}</span> : null}
                   </span>
                   <span className="text-[13px] text-(--ap-ink-2)">
-                    {dayMonth(h.from)} {parseDate(h.from).getFullYear()} – {h.to ? dayMonth(h.to) : "Present"}
+                    {isDate(h.from) ? `${dayMonth(h.from)} ${parseDate(h.from).getFullYear()}` : NOT_SET} – {h.to && isDate(h.to) ? dayMonth(h.to) : "Present"}
                   </span>
                   {h.to === null ? <StatusChip tone="ok">Current</StatusChip> : null}
                 </li>
               ))}
             </ul>
+            {data.history.length === 0 ? <p className="text-[14px] text-(--ap-ink-2)">No assignment history shared yet.</p> : null}
             <p className="mt-2 text-[13px] text-(--ap-muted)">Earlier assignments will appear here once Beeliv confirms what history is shared with you.</p>
           </AnalyticsPanel>
         </div>
       </div>
       {/* Phones: the one action lives in the sticky bar (the tab bar steps aside on this page). */}
       <span data-bv-detail="" hidden />
-      <StickyActionBar label={`Contact Beeliv about ${m.name.split(" ")[0]}`} href="/client/support?reason=Staff%20concern" />
+      <StickyActionBar label={`Contact Beeliv about ${firstName}`} href="/client/support?reason=Staff%20concern" />
     </div>
   );
 }

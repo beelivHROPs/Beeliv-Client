@@ -22,8 +22,8 @@ import { AccessSection, AppearanceSection, HelpSection, NotificationsSection, Pr
  * profile menu / phone More sheet, not the main sidebar.
  *
  * Profile and Notifications read/write the SAME onboarding store as
- * /client/setup, so both screens agree. There is no Client sign-in yet, so
- * Security actions are clearly-marked previews (they never fake success).
+ * /client/setup, so both screens agree. Live: Security offers only real paths
+ * (password reset link, sign out); sample mode keeps its clearly-marked previews.
  */
 
 const SECTIONS: [string, string, LucideIcon][] = [

@@ -50,14 +50,14 @@ export function WorkforceBody() {
   const outletName = (id: string) => outlet.outlets.find((o) => o.id === id)?.name ?? "";
 
   const members = useMemo(() => data ?? [], [data]);
-  const roles = useMemo(() => [...new Set(members.map((m) => m.role))].sort((a, b) => a.localeCompare(b)), [members]);
+  const roles = useMemo(() => [...new Set(members.map((m) => m.role).filter(Boolean))].sort((a, b) => a.localeCompare(b)), [members]);
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return members
       .filter((m) => (department === ALL || m.departmentId === department) && (role === ALL || m.role === role) && (assignment === ALL || m.assignmentStatus === assignment) && (!allOutlets || outletId === ALL || m.outletId === outletId))
-      .filter((m) => !needle || m.name.toLowerCase().includes(needle) || m.staffId.toLowerCase().includes(needle) || m.role.toLowerCase().includes(needle))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .filter((m) => !needle || (m.name ?? "").toLowerCase().includes(needle) || (m.staffId ?? "").toLowerCase().includes(needle) || (m.role ?? "").toLowerCase().includes(needle))
+      .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
   }, [members, q, department, role, assignment, outletId, allOutlets]);
 
   // Department chip counts ignore the department filter itself so every chip stays comparable.
@@ -297,7 +297,7 @@ function PhoneWorkforce({
                           <span className="min-w-0 flex-1 leading-tight">
                             <b className="block truncate text-[15px] font-semibold text-(--ap-ink)">{m.name}</b>
                             <span className="mt-0.5 block truncate text-[13px] text-(--ap-muted)">
-                              {m.role} &middot; {DEPARTMENT_LABEL[m.departmentId]}
+                              {[m.role, DEPARTMENT_LABEL[m.departmentId]].filter(Boolean).join(" · ")}
                               {outletName ? ` · ${outletName(m.outletId)}` : ""}
                             </span>
                             {m.assignmentStatus === "ended" ? (
@@ -380,7 +380,7 @@ function StaffTable({ rows, showOutlet, outletName }: ListProps) {
                     <Link href={staffHref(m.id)} onClick={(e) => e.stopPropagation()} className="block font-semibold text-(--ap-ink) hover:text-(--ap-violet)">
                       {m.name}
                     </Link>
-                    <span className="block text-[12px] text-(--ap-muted) tabular-nums">{m.staffId}</span>
+                    {m.staffId ? <span className="block text-[12px] text-(--ap-muted) tabular-nums">{m.staffId}</span> : null}
                   </span>
                 </span>
               </td>

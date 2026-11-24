@@ -78,7 +78,7 @@ export function AttendanceAnalytics({ f, clear }: { f: AnalyticsFilters; clear: 
     { key: "name", header: "Staff", primary: true, cell: (r) => r.staffName },
     { key: "role", header: "Role", cell: (r) => r.role },
     { key: "dept", header: "Department", cell: (r) => DEPARTMENT_LABEL[r.departmentId] },
-    { key: "shift", header: "Shift", cell: (r) => SHIFTS[r.shift].label },
+    { key: "shift", header: "Shift", cell: (r) => (SHIFTS[r.shift]?.label ?? "—") },
     { key: "status", header: "Status", cell: (r) => <AttendanceChip status={r.status} /> },
     { key: "in", header: "Clock-in", cell: (r) => (r.clockIn ? formatClock(r.clockIn) : "-") },
   ];

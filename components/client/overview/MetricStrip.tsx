@@ -4,6 +4,7 @@ import { formatPercent, share } from "@/lib/client/format";
 import { attendanceHref, workforceHref } from "@/lib/client/links";
 import type { ClientOverview } from "@/lib/client/types";
 import { usePilotHidden } from "@/lib/pilot/context";
+import { useLiveNoData } from "../ClientLiveBoot";
 
 type Cell = { key: string; label: string; value: number; sub: string; href: string; tone?: "ok" | "bad" };
 
@@ -16,7 +17,8 @@ type Cell = { key: string; label: string; value: number; sub: string; href: stri
  */
 export function MetricStrip({ ov }: { ov: ClientOverview }) {
   const m = ov.metrics;
-  const hidden = usePilotHidden();
+  const pilotHidden = usePilotHidden();
+  const noData = useLiveNoData();
   const of = (n: number) => (m.scheduled ? `${formatPercent(share(n, m.scheduled))} of scheduled` : "No one scheduled");
   const cells: Cell[] = [
     { key: "active", label: "Active staff", value: m.activeStaff, sub: ov.scope === "all" ? "All outlets" : "This outlet", href: workforceHref() },
@@ -25,8 +27,9 @@ export function MetricStrip({ ov }: { ov: ClientOverview }) {
     { key: "absent", label: "Absent", value: m.absent, sub: of(m.absent), href: attendanceHref({ status: "absent", date: "today" }), tone: m.absent > 0 ? "bad" : undefined },
     { key: "leave", label: "On leave", value: m.onLeave, sub: of(m.onLeave), href: attendanceHref({ status: "on-leave", date: "today" }) },
   ];
-  // Pilot menu: tiles that open a later-stage screen (Attendance) are left out; the strip keeps the rest.
-  const shown = cells.filter((c) => !hidden(c.href));
+  // Pilot menu, or live with no attendance backend yet: tiles that open a later-stage screen (Attendance) are left out
+  // (never a fake "0 present"); the strip keeps the rest.
+  const shown = cells.filter((c) => !pilotHidden(c.href) && !noData(c.href));
   const cols = ["", "min-[768px]:grid-cols-1", "min-[768px]:grid-cols-2", "min-[768px]:grid-cols-3", "min-[768px]:grid-cols-4", "min-[768px]:grid-cols-5"][shown.length];
   return (
     <Reveal as="section" aria-label="Today at a glance" className={`flex overflow-x-auto max-[767px]:border-y max-[767px]:border-(--ap-line) min-[768px]:grid ${cols} min-[768px]:overflow-visible min-[768px]:rounded-[10px] min-[768px]:border min-[768px]:border-(--ap-line) min-[768px]:bg-(--ap-surface) [scrollbar-width:none] [&::-webkit-scrollbar]:hidden`}>

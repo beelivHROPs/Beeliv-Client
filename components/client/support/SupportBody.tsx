@@ -13,6 +13,7 @@ import { useClientSession } from "@/lib/client/hooks";
 import { NEW_REQUEST_HREF } from "@/lib/client/links";
 import { AnalyticsPanel, ChartErrorState, ChartSkeleton } from "../charts";
 import { ClientAvatar } from "../ClientAvatar";
+import { useClientLive } from "../ClientLiveBoot";
 
 /** Support reasons from the brief (section 30). The list is presentation; routing them is the backend's job (TBD). */
 const REASONS = ["Staffing request", "Recruitment question", "Staff concern", "Document / compliance issue", "Schedule issue", "Access change request", "Report a problem", "Other"] as const;
@@ -25,30 +26,35 @@ const MAX = 1000;
  * Client Support (brief section 30): personal to Beeliv, not a generic FAQ.
  * "Your Beeliv team" shows the assigned contact; channels appear ONLY when
  * Beeliv has approved them (currently null in the fixture), so nothing is
- * invented. The contact form has no backend yet - submitting shows a
- * confirmation toast and nothing is sent.
+ * invented. The contact form has no backend yet: in sample mode submitting
+ * shows a confirmation toast and nothing is sent; in the LIVE Client the form
+ * is left out and the team card offers Beeliv's real email instead (with the
+ * chosen reason as the subject), so nothing pretends to send.
  */
 export function SupportBody({ initialReason }: { initialReason?: string }) {
   const preset = (REASONS as readonly string[]).includes(initialReason ?? "") ? (initialReason as Reason) : "";
+  const live = useClientLive();
   return (
     <div>
       <PageHeading title="Support" subtitle="Reach your Beeliv team, or find a quick answer." />
       <div className="grid grid-cols-1 items-start gap-4 min-[1101px]:grid-cols-[minmax(0,1fr)_400px] min-[1101px]:gap-5">
         <div className="order-2 flex min-w-0 flex-col gap-4 min-[1101px]:order-1 min-[1101px]:gap-5">
-          <ContactForm initialReason={preset} />
+          {live ? null : <ContactForm initialReason={preset} />}
           <Faq />
         </div>
         <div className="order-1 min-w-0 min-[1101px]:order-2">
-          <TeamCard />
+          <TeamCard reason={live ? preset : ""} />
         </div>
       </div>
     </div>
   );
 }
 
-function TeamCard() {
+function TeamCard({ reason }: { reason: Reason | "" }) {
   const { data, status, retry } = useClientSession();
   const team = data?.team;
+  const live = useClientLive();
+  const subject = reason ? `?subject=${encodeURIComponent(reason)}` : "";
   return (
     <AnalyticsPanel title="Your Beeliv team" subtitle="Your main contact at Beeliv">
       {status === "loading" ? <ChartSkeleton height={150} label="Loading your Beeliv team" /> : null}
@@ -73,7 +79,7 @@ function TeamCard() {
               ) : null}
               {team.email ? (
                 <li>
-                  <a href={`mailto:${team.email}`} className="ap-btn ap-btn-s w-full justify-start wrap-anywhere">
+                  <a href={`mailto:${team.email}${subject}`} className="ap-btn ap-btn-s w-full justify-start wrap-anywhere">
                     <Mail className="size-4 shrink-0" aria-hidden="true" /> {team.email}
                   </a>
                 </li>
@@ -82,13 +88,17 @@ function TeamCard() {
           ) : (
             <p className="rounded-xl bg-(--ap-tint-soft) px-3.5 py-3 text-[14px] leading-snug text-(--ap-ink-2)">Contact details are shared by Beeliv. Use the form to reach your team in the meantime.</p>
           )}
-          <p className="border-t border-(--ap-line-2) pt-3 text-[13px] text-(--ap-muted)">
-            Need more people?{" "}
-            <Link href={NEW_REQUEST_HREF} className="font-bold text-(--ap-violet)">
-              Request staff
-            </Link>{" "}
-            instead of messaging.
-          </p>
+          {live ? <p className="text-[13px] text-(--ap-muted)">{reason ? `About: ${reason}. ` : ""}Please don&apos;t include passwords or bank details.</p> : null}
+          {/* Live: Workforce Requests is still Coming soon, so email is the way to ask for staff. */}
+          {live ? null : (
+            <p className="border-t border-(--ap-line-2) pt-3 text-[13px] text-(--ap-muted)">
+              Need more people?{" "}
+              <Link href={NEW_REQUEST_HREF} className="font-bold text-(--ap-violet)">
+                Request staff
+              </Link>{" "}
+              instead of messaging.
+            </p>
+          )}
         </div>
       ) : null}
     </AnalyticsPanel>

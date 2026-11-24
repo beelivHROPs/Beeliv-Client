@@ -6,7 +6,8 @@
  * Real today (GET /api/client/portal): the user's own name/email, their outlets, and the staff placed there
  * (name, role, department, outlet, start date only - data-visibility-matrix).
  * Everything without a backend yet (attendance, schedules, candidates, requests, documents, payroll, notifications)
- * is EMPTY: the approved screens show their empty states. Nothing is invented; writes say "not connected yet".
+ * is EMPTY: the approved screens show their empty states or Coming soon (components/client/ClientLiveGate.tsx).
+ * Nothing is invented. The Beeliv contact is the real support address (hello@beeliv.co, the Supabase/Resend sender).
  */
 import type { ClientAnalyticsAdapter, AdapterEvent } from "../adapter";
 import type {
@@ -38,11 +39,13 @@ function portal(): Promise<Portal> {
   return cached;
 }
 
-const NOT_CONNECTED = "This isn't connected yet. Beeliv will switch it on soon.";
-const TEAM = { name: "Beeliv team", role: "Your Beeliv contact", phone: null, email: null };
+/** Only reachable from screens that show Coming soon in live; a calm way out, never a fake success. */
+const NOT_CONNECTED = "This is coming soon. In the meantime, email Beeliv at hello@beeliv.co.";
+const MANY = "Your businesses";
+const TEAM = { name: "Beeliv team", role: "Your Beeliv contact", phone: null, email: "hello@beeliv.co" };
 
-function department(text: string): DepartmentId {
-  const t = text.toLowerCase();
+function department(text: string | null | undefined): DepartmentId {
+  const t = String(text ?? "").toLowerCase();
   if (/kitchen|chef|cook/.test(t)) return "kitchen";
   if (/bar/.test(t)) return "bar";
   if (/admin|office|account/.test(t)) return "admin";
@@ -59,12 +62,12 @@ function member(m: PortalMember): WorkforceMember {
   return {
     id: m.placementId,
     staffId: "",
-    name: m.name,
-    role: m.role,
+    name: m.name || "",
+    role: m.role || "",
     departmentId: department(m.department),
     outletId: m.outletId,
     assignmentStatus: "active",
-    startDate: m.startDate,
+    startDate: m.startDate || "", // screens show "Not set yet" when missing
     shift: "" as WorkforceMember["shift"], // not recorded by the backend yet; screens show a dash
     photoUrl: null,
   };
@@ -72,13 +75,13 @@ function member(m: PortalMember): WorkforceMember {
 
 async function session(): Promise<ClientSession> {
   const p = await portal();
-  const parts = p.fullName.trim().split(/\s+/).filter(Boolean);
+  const parts = String(p.fullName ?? "").trim().split(/\s+/).filter(Boolean);
   const clients = [...new Set(p.outlets.map((o) => o.clientName))];
   return {
     accountState: p.outlets.length ? "active" : "no-outlets",
-    user: { id: "", firstName: parts[0] ?? "", lastName: parts.slice(1).join(" "), salutation: null, avatarUrl: null, email: p.email },
+    user: { id: "", firstName: parts[0] ?? "", lastName: parts.slice(1).join(" "), salutation: null, avatarUrl: null, email: p.email ?? "" },
     clientId: p.outlets[0]?.clientId,
-    clientName: clients.length === 1 ? clients[0] : clients.length ? "Your businesses" : "",
+    clientName: clients.length === 1 ? clients[0] : clients.length ? MANY : "",
     outlets: p.outlets.map((o) => ({ id: o.outletId, name: o.outletName, location: o.city, imageUrl: null })),
     defaultScope: "all",
     team: TEAM,
@@ -100,8 +103,8 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
     const outlet = scope === "all" ? null : (s.outlets.find((o) => o.id === scope) ?? null);
     return {
       scope,
-      scopeLabel: outlet ? outlet.name : s.clientName ? `All ${s.clientName} outlets` : "All your outlets",
-      greetingName: s.user.firstName,
+      scopeLabel: outlet ? outlet.name : s.clientName && s.clientName !== MANY ? `All ${s.clientName} outlets` : "All your outlets",
+      greetingName: s.user.firstName || "there",
       outlet,
       metrics: { ...zero(today()), activeStaff: inScope(p.workforce, scope).length, openPositions: 0 },
       checkedIn: 0,
@@ -136,8 +139,8 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
     if (!m) return null;
     return {
       member: member(m),
-      outletName: m.outletName,
-      clientName: m.clientName,
+      outletName: m.outletName || "",
+      clientName: m.clientName || "",
       attendance: { from: today(), to: today(), scheduled: 0, present: 0, late: 0, absent: 0, onLeave: 0, attendanceRate: 0 },
       recentAttendance: [],
       upcomingSchedule: [],
@@ -164,7 +167,7 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
       currentStep: 0,
       invitedBy: TEAM,
       items: [],
-      details: { fullName: p.fullName, jobTitle: p.profile?.jobTitle ?? "", phone: p.profile?.phone ?? "", preferredContact: "email" as const, avatarUrl: null },
+      details: { fullName: p.fullName ?? "", jobTitle: p.profile?.jobTitle ?? "", phone: p.profile?.phone ?? "", preferredContact: "email" as const, avatarUrl: null },
       notifications: (p.profile?.notifications ?? {}) as import("../types").NotificationPrefs,
       agreements: [],
     };

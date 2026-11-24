@@ -8,6 +8,7 @@ import { attendanceHref, NEW_REQUEST_HREF } from "@/lib/client/links";
 import type { ClientOverview, Outlet } from "@/lib/client/types";
 import { UserPlus } from "../icons";
 import { usePilotHidden } from "@/lib/pilot/context";
+import { useLiveNoData } from "../ClientLiveBoot";
 
 /**
  * Overview greeting (calm redesign, sample). One tinted panel: a short human
@@ -20,7 +21,9 @@ export function Banner({ ov, firstOutlet }: { ov: ClientOverview; firstOutlet: O
   const photo = outletImage(ov.outlet ?? firstOutlet);
   // Pilot menu: attendance is a later-stage screen, so its sentence and link are left out, and so are attention items that point only there.
   const hidden = usePilotHidden();
-  const attendanceHidden = hidden(attendanceHref());
+  const noData = useLiveNoData();
+  // Live: attendance has no backend yet, so no "No one is scheduled" claim and no link to its Coming-soon screen.
+  const attendanceHidden = hidden(attendanceHref()) || noData(attendanceHref());
   const n = ov.attention.filter((i) => !hidden(i.href)).length;
   return (
     <Reveal as="section" aria-label="Welcome" className="grid overflow-hidden min-[768px]:min-h-[176px] min-[768px]:grid-cols-[minmax(0,1fr)_minmax(0,36%)] min-[768px]:rounded-[10px] min-[768px]:border min-[768px]:border-(--ap-line) min-[768px]:bg-(--ap-tint)">

@@ -18,6 +18,7 @@ import { RecruitmentCard } from "./RecruitmentCard";
 import { CoverageCard, WeekStripCard } from "./ScheduleCards";
 import { WorkforceToday } from "./WorkforceToday";
 import { usePilotMenu } from "@/lib/pilot/context";
+import { useClientLive } from "../ClientLiveBoot";
 
 /**
  * Overview = an operational briefing (brief section 7). One question: "how is
@@ -35,7 +36,10 @@ export function OverviewBody() {
   const { data: ov, status, retry } = useOverview();
   const outlet = useOutletState();
   const onboarding = useOnboarding();
-  const pilot = usePilotMenu();
+  // Live: attendance, schedule, compliance and payroll have no backend yet (their screens show Coming soon), so Home
+  // uses the approved short layout (the pilot one) instead of a page of cards with nothing real in them.
+  const live = useClientLive();
+  const pilot = usePilotMenu() || live;
 
   if (status === "loading" || onboarding.status === "loading") return <OverviewSkeleton />;
   if (status === "error" || !ov) return <OverviewError retry={retry} />;
@@ -59,7 +63,7 @@ export function OverviewBody() {
         <Banner ov={ov} firstOutlet={outlet.outlets[0] ?? null} />
         <MetricStrip ov={ov} />
         {pilot ? (
-          /* Pilot menu: attendance, schedule, compliance and payroll cards point only at later-stage screens, so they are left out. */
+          /* Pilot menu or live: attendance, schedule, compliance and payroll cards point only at later-stage screens, so they are left out. */
           <div className="grid grid-cols-1 gap-5 min-[768px]:grid-cols-2 min-[768px]:gap-4 min-[1241px]:grid-cols-12">
             <AttentionCard items={ov.attention} className="order-1 min-[768px]:order-none min-[1241px]:col-span-4 min-[1241px]:col-start-9 min-[1241px]:row-start-1" />
             <RecruitmentCard showOutlet={ov.scope === "all"} className="order-2 min-[768px]:order-none min-[1241px]:col-span-8 min-[1241px]:row-start-1" />

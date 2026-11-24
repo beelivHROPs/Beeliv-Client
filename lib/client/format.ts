@@ -5,8 +5,21 @@
 import type { ClockTime, ISODate, ISODateTime } from "./types";
 
 export function parseDate(d: ISODate): Date {
-  const [y, m, day] = d.split("-").map(Number);
+  const [y, m, day] = String(d ?? "").split("-").map(Number);
   return new Date(y, m - 1, day);
+}
+
+/** Shown wherever a date, time or figure the backend has not recorded would go (live data can be missing a field). */
+export const NOT_SET = "Not set yet";
+
+/** True for a usable "YYYY-MM-DD" (or longer ISO) date; false for "", null, undefined or garbage. */
+export function isDate(d: ISODate | null | undefined): d is ISODate {
+  return typeof d === "string" && /^\d{4}-\d{2}-\d{2}/.test(d) && !Number.isNaN(parseDate(d.slice(0, 10)).getTime());
+}
+
+/** Formats a date with `fmt`, or returns `fallback` when the date is missing or invalid (never "Invalid Date"). */
+export function maybeDate(d: ISODate | null | undefined, fmt: (d: ISODate) => string, fallback = NOT_SET): string {
+  return isDate(d) ? fmt(d.slice(0, 10)) : fallback;
 }
 
 export function toISODate(date: Date): ISODate {
@@ -37,7 +50,8 @@ export function daysBetween(a: ISODate, b: ISODate): number {
 
 /** "08:00" -> "8:00 AM". */
 export function formatClock(t: ClockTime): string {
-  const [h, m] = t.split(":").map(Number);
+  const [h, m] = String(t ?? "").split(":").map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return "—";
   const suffix = h >= 12 ? "PM" : "AM";
   const h12 = h % 12 === 0 ? 12 : h % 12;
   return `${h12}:${String(m).padStart(2, "0")} ${suffix}`;
@@ -84,6 +98,7 @@ export function greetingForNow(): string {
 
 export function timeAgo(iso: ISODateTime): string {
   const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  if (Number.isNaN(mins)) return "";
   if (mins < 1) return "Just now";
   if (mins < 60) return `${mins} min ago`;
   const hrs = Math.round(mins / 60);
@@ -94,6 +109,7 @@ export function timeAgo(iso: ISODateTime): string {
 
 /** "87.5%" - trims a trailing ".0". */
 export function formatPercent(n: number): string {
+  if (typeof n !== "number" || !Number.isFinite(n)) return "—"; // never "NaN%"
   return `${Number.isInteger(n) ? n : n.toFixed(1)}%`;
 }
 
@@ -111,6 +127,6 @@ export function displayName(u: { salutation: string | null; firstName: string; l
 }
 
 export function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
+  const parts = String(name ?? "").trim().split(/\s+/);
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "")).toUpperCase();
 }
