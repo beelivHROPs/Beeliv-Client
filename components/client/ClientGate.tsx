@@ -93,7 +93,19 @@ const GATES: Record<Exclude<ClientAccountState, "active">, Gate> = {
   },
 };
 
+/** The approved state illustrations (public/images/staff/state-*.webp), shared with the Staff gates. */
+const ART: Record<Exclude<ClientAccountState, "active">, string> = {
+  "invitation-required": "/images/staff/state-invitation-required.webp",
+  "invitation-expired": "/images/staff/state-invitation-expired.webp",
+  "invitation-invalid": "/images/staff/state-invitation-expired.webp",
+  "invitation-used": "/images/staff/state-invitation-required.webp",
+  suspended: "/images/staff/state-suspended.webp",
+  "no-client-access": "/images/staff/state-no-access.webp",
+  "wrong-portal": "/images/staff/state-no-access.webp",
+  "no-outlets": "/images/staff/state-no-access.webp",
+};
+
 export function ClientGate({ state }: { state: Exclude<ClientAccountState, "active"> }) {
   const g = GATES[state];
-  return <StatusGate tone={g.tone} image={null} icon={g.icon} chip={g.chip} title={g.title} lead={g.lead} next={g.next} primary={g.primary} secondary={g.secondary} />;
+  return <StatusGate tone={g.tone} image={ART[state]} icon={g.icon} chip={g.chip} title={g.title} lead={g.lead} next={g.next} primary={g.primary} secondary={g.secondary} />;
 }

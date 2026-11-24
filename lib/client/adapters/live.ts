@@ -21,7 +21,7 @@ import type {
 
 type PortalOutlet = { outletId: string; outletName: string; clientId: string; clientName: string; city: string };
 type PortalMember = { placementId: string; clientId: string; clientName: string; outletId: string; outletName: string; name: string; role: string; department: string; startDate: string; status: string };
-type Portal = { fullName: string; email: string; outlets: PortalOutlet[]; workforce: PortalMember[]; workforceAvailable: boolean };
+type Portal = { fullName: string; email: string; outlets: PortalOutlet[]; workforce: PortalMember[]; workforceAvailable: boolean; profile: { phone: string; jobTitle: string; notifications: Record<string, boolean> } | null };
 
 let cached: Promise<Portal> | null = null;
 function portal(): Promise<Portal> {
@@ -164,12 +164,20 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
       currentStep: 0,
       invitedBy: TEAM,
       items: [],
-      details: { fullName: p.fullName, jobTitle: "", phone: "", preferredContact: "email" as const, avatarUrl: null },
-      notifications: {} as import("../types").NotificationPrefs,
+      details: { fullName: p.fullName, jobTitle: p.profile?.jobTitle ?? "", phone: p.profile?.phone ?? "", preferredContact: "email" as const, avatarUrl: null },
+      notifications: (p.profile?.notifications ?? {}) as import("../types").NotificationPrefs,
       agreements: [],
     };
   },
-  saveOnboarding: async () => {
-    throw new Error(NOT_CONNECTED);
+  // Settings: the person's OWN name, phone, job title and notification preferences (client-portal-profile.sql).
+  async saveOnboarding(input) {
+    const body: Record<string, unknown> = {};
+    if (input.details) Object.assign(body, { fullName: input.details.fullName, phone: input.details.phone, jobTitle: input.details.jobTitle });
+    if (input.notifications) body.notifications = Object.fromEntries(Object.entries(input.notifications).filter(([, v]) => typeof v === "boolean"));
+    const res = await fetch("/api/client/profile", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const j = (await res.json().catch(() => null)) as { ok?: boolean; reason?: string } | null;
+    if (!j?.ok) throw new Error(j?.reason === "phone_in_use" ? "This phone number is already used by another Beeliv account." : j?.reason === "invalid_request" ? "Check the details and try again." : "We couldn't save that. Please try again.");
+    cached = null; // reload the saved values
+    return this.getOnboarding();
   },
 };
