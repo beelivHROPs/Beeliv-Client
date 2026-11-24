@@ -2,11 +2,12 @@ import "server-only";
 import { sessionClient, adminClient } from "../auth/session";
 import { readAccess, hasAccess } from "../auth/policy";
 import { limitAuth } from "../auth/rate";
+import { parseShiftRange, projectClientShifts, type ClientShift } from "./shifts";
 
 export type ClientWorkspace = { name: string; scopes: { clientName: string; outletName: string | null }[]; truncated: boolean };
 
 /** Verified Client actor (provider user + claims + active client access), or throws. Shared by every Client read. */
-async function verifiedClientActor() {
+async function verifiedClientActor(bucket = "client-portal") {
   if (process.env.CLIENT_WORKSPACE_SCHEMA_READY !== "true") throw new Error("client_workspace_unavailable");
   const client = await sessionClient("client", undefined, true);
   const [{ data: identity, error: identityError }, { data: proof, error: proofError }] = await Promise.all([client.auth.getUser(), client.auth.getClaims()]);
@@ -16,7 +17,7 @@ async function verifiedClientActor() {
   const access = await client.rpc("auth_access_context", { p_app: "client" });
   const context = readAccess(access.data, "client");
   if (access.error || !hasAccess(context) || context?.role !== "client") throw new Error("client_workspace_unavailable");
-  await limitAuth("client", "setup_read", user.id);
+  await limitAuth("client", "org_read", `${bucket}:${user.id}`);
   return { uid: user.id, email: user.email ?? "", sessionId: claims.session_id as string };
 }
 
@@ -69,7 +70,7 @@ export async function readClientWorkspace(): Promise<ClientWorkspace> {
   const access = await client.rpc("auth_access_context", { p_app: "client" });
   const context = readAccess(access.data, "client");
   if (access.error || !hasAccess(context) || context?.role !== "client") throw new Error("client_workspace_unavailable");
-  await limitAuth("client", "setup_read", user.id);
+  await limitAuth("client", "org_read", `client-portal:${user.id}`);
   const { data, error } = await adminClient("client").rpc("client_workspace_context", { p_actor_uid: user.id, p_session_id: claims.session_id });
   if (error || data?.ok !== true || typeof data.fullName !== "string" || !Array.isArray(data.scopes) || data.scopes.length > 100 || typeof data.truncated !== "boolean") throw new Error("client_workspace_unavailable");
   const scopes = data.scopes.map((item: { clientName?: unknown; outletName?: unknown }) => {
@@ -88,4 +89,23 @@ export async function saveClientProfile(input: { fullName?: string; phone?: stri
   });
   if (error) throw new Error("unavailable");
   if (data?.ok !== true) throw new Error(typeof data?.reason === "string" ? data.reason : "unavailable");
+}
+
+/**
+ * The signed-in client user's PUBLISHED shifts and check-ins at the outlets they may see, for a window of at most 62 days
+ * (day1-assignment-client-shifts.sql: staff name, role, section, times and a status only). The range is checked before any
+ * sign-in work. Own rate-limit key, so browsing Attendance / Schedules never uses up the portal reads.
+ * Throws "invalid_request" | "client_workspace_unavailable" | "agreement_required" | "no_access" | "unavailable".
+ */
+export async function readClientShifts(input: unknown): Promise<ClientShift[]> {
+  const range = parseShiftRange(input);
+  if (!range) throw new Error("invalid_request");
+  const actor = await verifiedClientActor("client-shifts");
+  const { data, error } = await adminClient("client").rpc("client_portal_shifts", { p_actor_uid: actor.uid, p_session_id: actor.sessionId, p_from: range.from, p_to: range.to });
+  if (error) throw new Error("unavailable");
+  if (data?.ok !== true) {
+    const reason = typeof data?.reason === "string" ? data.reason : "";
+    throw new Error(["invalid_request", "agreement_required", "no_access"].includes(reason) ? reason : "unavailable");
+  }
+  return projectClientShifts(data.items);
 }

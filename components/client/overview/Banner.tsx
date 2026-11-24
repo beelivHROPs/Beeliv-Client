@@ -22,7 +22,7 @@ export function Banner({ ov, firstOutlet }: { ov: ClientOverview; firstOutlet: O
   // Pilot menu: attendance is a later-stage screen, so its sentence and link are left out, and so are attention items that point only there.
   const hidden = usePilotHidden();
   const noData = useLiveNoData();
-  // Live: attendance has no backend yet, so no "No one is scheduled" claim and no link to its Coming-soon screen.
+  // Live: only while attendance is Coming soon would its sentence and link be left out; it is real now (published shifts).
   const attendanceHidden = hidden(attendanceHref()) || noData(attendanceHref());
   const n = ov.attention.filter((i) => !hidden(i.href)).length;
   return (

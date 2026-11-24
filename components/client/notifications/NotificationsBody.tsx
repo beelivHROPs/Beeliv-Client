@@ -30,19 +30,20 @@ export function NotificationsBody() {
 
   return (
     <div>
-      <div className="mx-auto w-full max-w-[720px]">
+      <div className="w-full">
         <PageHeading title="Notifications" />
       </div>
       {status === "loading" ? (
-        <div className="mx-auto w-full max-w-[720px]">
+        <div className="w-full">
           <NotificationSkeleton />
         </div>
       ) : status === "error" || status === "restricted" ? (
-        <div className="mx-auto w-full max-w-[720px]">
+        <div className="w-full">
           <NotificationError onRetry={retry} restricted={status === "restricted"} />
         </div>
       ) : (
         <NotificationList
+          wide
           items={items}
           emptyText="Updates about candidates, workforce requests and documents will show up here."
           onOpen={(n) => {

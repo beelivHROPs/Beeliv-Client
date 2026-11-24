@@ -28,7 +28,7 @@ export function PhoneHome({ ov }: { ov: ClientOverview }) {
   const { data } = useAttendanceRecords(today, today);
   const onShift = useMemo(() => (data ?? []).filter((r) => r.clockIn !== null), [data]);
   const noData = useLiveNoData();
-  // Live: attendance and recruitment have no backend yet, so their tiles are left out (never a fake 0).
+  // Live: recruitment has no backend yet, so its tile is left out (never a fake 0). Attendance is real (published shifts).
   const attHidden = hidden(attendanceHref()) || noData(attendanceHref());
   const recHidden = noData("/client/recruitment");
 
