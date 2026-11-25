@@ -20,6 +20,8 @@
 html.client-app .applicant-shell {
   --ap-violet: #6f294f;
   --ap-violet-2: #8a3d68;
+  /* Shared Staff-kit buttons (ActionPill purple, e.g. the error panel's Try again) use the Client plum, not Staff purple. */
+  --staff-fill: #6f294f;
   --ap-plum: #1c171a; /* sidebar / bottom nav: warm plum-black */
   --ap-plum-2: #141013;
   --ap-gradient: linear-gradient(135deg, #8a3d68 0%, #6f294f 55%, #321824 100%);
