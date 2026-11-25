@@ -9,6 +9,7 @@
  * Only relative imports so it can be unit-tested offline (tests/day2-staff-requests.test.cjs).
  */
 import { toISODate } from "./format";
+import { explainError, isKnownErrorCode, NETWORK_MESSAGE } from "../shared/error-messages";
 import type { ComplianceItem, ComplianceState, ComplianceSummary, DepartmentId, NewWorkforceRequest, OutletScope, WorkforceRequest, WorkforceRequestStatus } from "./types";
 
 /** Department text (placements, requests) -> the Client's department ids. Shared with My Workforce. */
@@ -60,7 +61,13 @@ const MESSAGE: Record<string, string> = {
   no_access: "You can't request staff for this outlet.",
   rate_limited: "Too many requests. Please wait a moment and try again.",
 };
-const failed = (j: Rec | null, fallback: string) => new Error(MESSAGE[str(rec(j?.error)?.code)] ?? fallback);
+/** Request-specific wording first, then the shared explanation (lib/shared/error-messages.ts), then the caller's fallback. */
+const failed = (j: Rec | null, fallback: string) => {
+  const code = str(rec(j?.error)?.code) || str(j?.reason);
+  return new Error(MESSAGE[code] ?? (code && code !== "unavailable" && isKnownErrorCode(code) ? explainError(code) : fallback));
+};
+/** fetch() itself threw: say so instead of showing the browser's text. */
+const offline = () => new Error(NETWORK_MESSAGE);
 
 const TTL_MS = 5_000;
 let listCache: { at: number; p: Promise<{ items: WorkforceRequest[]; reasons: string[] }> } | null = null;
@@ -68,7 +75,7 @@ let listCache: { at: number; p: Promise<{ items: WorkforceRequest[]; reasons: st
 /** The user's requests (all their outlets) and the reason labels. Shared for a few seconds across the page's cards. */
 export function liveRequests(): Promise<{ items: WorkforceRequest[]; reasons: string[] }> {
   if (listCache && Date.now() - listCache.at < TTL_MS) return listCache.p;
-  const p = fetch("/api/client/requests", { credentials: "same-origin", cache: "no-store" }).then(async (res) => {
+  const p = fetch("/api/client/requests", { credentials: "same-origin", cache: "no-store" }).catch(() => { throw offline(); }).then(async (res) => {
     const j = rec(await res.json().catch(() => null));
     if (j?.ok !== true || !Array.isArray(j.items)) throw failed(j, "Your requests could not be loaded. Please try again.");
     return {
@@ -93,7 +100,7 @@ export const scopedRequests = (items: WorkforceRequest[], scope: OutletScope) =>
 export async function createLiveRequest(input: NewWorkforceRequest): Promise<WorkforceRequest> {
   const res = await fetch("/api/client/requests", {
     method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestBody(input)),
-  });
+  }).catch(() => { throw offline(); });
   const j = rec(await res.json().catch(() => null));
   if (j?.ok !== true || !str(j.id)) throw failed(j, "We couldn't send your request. Please try again.");
   resetLiveRequests();
@@ -155,9 +162,9 @@ let complianceCache: { at: number; p: Promise<ComplianceItem[]> } | null = null;
 /** All compliance items the user may see. Shared for a few seconds (the summary and the list load together). */
 export function liveCompliance(): Promise<ComplianceItem[]> {
   if (complianceCache && Date.now() - complianceCache.at < TTL_MS) return complianceCache.p;
-  const p = fetch("/api/client/compliance", { credentials: "same-origin", cache: "no-store" }).then(async (res) => {
+  const p = fetch("/api/client/compliance", { credentials: "same-origin", cache: "no-store" }).catch(() => { throw offline(); }).then(async (res) => {
     const j = rec(await res.json().catch(() => null));
-    if (j?.ok !== true || !Array.isArray(j.items)) throw new Error("Compliance could not be loaded. Please try again.");
+    if (j?.ok !== true || !Array.isArray(j.items)) throw failed(j, "Compliance could not be loaded. Please try again.");
     return toComplianceItems(j.items);
   });
   const entry = { at: Date.now(), p };

@@ -18,6 +18,7 @@ import { FEEDBACK_LABEL, FeedbackChip } from "./meta";
 import { BackRow, PageError, PageSkeleton } from "./states";
 import { StickyActionBar } from "@/components/shared/mobile/StickyActionBar";
 import { ClientDocumentActions } from "../compliance/DocumentActions";
+import { errorMessage } from "@/lib/shared/error-messages";
 
 const BACK = (
   <BackRow>
@@ -139,8 +140,8 @@ function FeedbackPanel({ candidate }: { candidate: CandidateDetail }) {
       await service.submitCandidateFeedback(scope, candidate.id, input);
       toast.add({ title: success, description: "Beeliv HR has been told.", type: "success", data: sound ? { sound } : undefined });
       return true;
-    } catch {
-      toast.add({ title: "We couldn't send your feedback", description: "Please try again.", type: "error" });
+    } catch (e) {
+      toast.add({ title: "We couldn't send your feedback", description: errorMessage(e), type: "error" });
       return false;
     } finally {
       setBusy(false);

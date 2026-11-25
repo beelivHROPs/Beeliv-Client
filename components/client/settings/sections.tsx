@@ -27,6 +27,7 @@ import { SoundSettingsRows } from "@/components/admin/settings/SoundSettings";
 import { ClientAvatar } from "../ClientAvatar";
 import { useClientLive } from "../ClientLiveBoot";
 import { AccessSummary, detailsErrors } from "../setup/SetupSteps";
+import { errorMessage } from "@/lib/shared/error-messages";
 
 /** Settings sections (project lead, 2026-09-30, locked spec). Each is a SectionCard so the page reads the same as Applicant / Staff Settings. */
 
@@ -84,8 +85,8 @@ export function ProfileSection({ details, session }: { details: ClientContactDet
       await saveOnboarding({ details: { ...details, fullName: draft.fullName.trim(), jobTitle: draft.jobTitle.trim(), phone: draft.phone } });
       toast.add({ title: "Profile saved" });
       setTried(false);
-    } catch {
-      toast.add({ title: "We couldn't save that", description: "Please try again.", type: "error" });
+    } catch (e) {
+      toast.add({ title: "We couldn't save that", description: errorMessage(e), type: "error" });
     } finally {
       setBusy(false);
     }

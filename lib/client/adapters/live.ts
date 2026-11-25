@@ -25,6 +25,7 @@ import type {
 } from "../types";
 import { coverage, liveShifts, scheduleEntries, scoped, summary, toRecords, trend, week, type MemberLookup } from "../shifts-live";
 import { addDays, startOfWeek, todayISO } from "../format";
+import { errorFromReply, isKnownErrorCode, networkError, replyCode } from "../../shared/error-messages";
 import {
   complianceSummary, createLiveRequest, department, DEPT_LABEL, liveCompliance, liveRequests, markLiveRequestSeen, scopedRequests,
 } from "../requests-live";
@@ -36,9 +37,12 @@ type Portal = { fullName: string; email: string; outlets: PortalOutlet[]; workfo
 let cached: Promise<Portal> | null = null;
 function portal(): Promise<Portal> {
   if (!cached) {
-    cached = fetch("/api/client/portal", { credentials: "same-origin", cache: "no-store" }).then(async (res) => {
+    cached = fetch("/api/client/portal", { credentials: "same-origin", cache: "no-store" }).catch(() => { throw networkError(); }).then(async (res) => {
       const j = (await res.json().catch(() => null)) as ({ ok?: boolean } & Portal) | null;
-      if (!j || j.ok !== true) throw new Error("Your account could not be loaded. Reload the page to try again.");
+      if (!j || j.ok !== true) {
+        const code = replyCode(j);
+        throw code && code !== "unavailable" && isKnownErrorCode(code) ? errorFromReply(j) : new Error("Your account could not be loaded. Reload the page to try again.");
+      }
       return j;
     });
     cached.catch(() => {
@@ -213,9 +217,10 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
     const body: Record<string, unknown> = {};
     if (input.details) Object.assign(body, { fullName: input.details.fullName, phone: input.details.phone, jobTitle: input.details.jobTitle });
     if (input.notifications) body.notifications = Object.fromEntries(Object.entries(input.notifications).filter(([, v]) => typeof v === "boolean"));
-    const res = await fetch("/api/client/profile", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch("/api/client/profile", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => { throw networkError(); });
     const j = (await res.json().catch(() => null)) as { ok?: boolean; reason?: string } | null;
-    if (!j?.ok) throw new Error(j?.reason === "phone_in_use" ? "This phone number is already used by another Beeliv account." : j?.reason === "invalid_request" ? "Check the details and try again." : "We couldn't save that. Please try again.");
+    // phone_in_use never says whose number it is (lib/shared/error-messages.ts).
+    if (!j?.ok) throw errorFromReply(j, undefined, { invalid_request: "Check the details and try again.", unavailable: "We couldn't save that. Please try again." });
     cached = null; // reload the saved values
     return this.getOnboarding();
   },
