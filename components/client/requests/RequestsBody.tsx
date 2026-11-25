@@ -45,7 +45,13 @@ export function RequestsBody({ initialOpen }: { initialOpen: boolean }) {
   if (status === "loading" && !data) return <PageSkeleton title="Workforce Requests" label="Loading requests" blocks={[110, 380]} />;
   if (status === "error") return <PageError heading="Workforce Requests" title="We couldn't load your requests" retry={retry} />;
 
-  const list = [...(data ?? [])].sort((a, b) => (a.submittedOn === b.submittedOn ? (Number(a.id.replace("req-", "")) < Number(b.id.replace("req-", "")) ? 1 : -1) : a.submittedOn < b.submittedOn ? 1 : -1));
+  // Newest first. Same day: fixture ids ("req-N") by number; real ids keep the server's order (newest first).
+  const seq = (id: string) => (/^req-\d+$/.test(id) ? Number(id.slice(4)) : null);
+  const list = [...(data ?? [])].sort((a, b) => {
+    if (a.submittedOn !== b.submittedOn) return a.submittedOn < b.submittedOn ? 1 : -1;
+    const x = seq(a.id), y = seq(b.id);
+    return x !== null && y !== null ? y - x : 0;
+  });
 
   function toggle(v: boolean) {
     setOpen(v);

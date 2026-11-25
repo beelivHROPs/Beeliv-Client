@@ -108,6 +108,12 @@ export function RequestDetailBody({ id }: { id: string }) {
                 <p className="mt-0.5 text-[15px] leading-snug text-(--ap-ink-2)">{r.notes}</p>
               </div>
             ) : null}
+            {r.message ? (
+              <div className="mt-4 border-t border-(--ap-line-2) pt-3">
+                <h3 className="text-[12px] font-bold tracking-wide text-(--ap-muted) uppercase">Message from Beeliv</h3>
+                <p className="mt-0.5 text-[15px] leading-snug whitespace-pre-wrap text-(--ap-ink-2)">{r.message}</p>
+              </div>
+            ) : null}
           </AnalyticsPanel>
         </div>
 

@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { RestrictedError } from "./adapter";
 import { useOutletScope } from "./outlet";
 import * as service from "./service";
+import { noteLoadFailure } from "../shared/load-failure";
 import type {
   ActivityItem,
   AttendanceRecord,
@@ -74,7 +75,11 @@ function useLoad<T>(scope: OutletScope | null | undefined, load: (scope: OutletS
     let cancelled = false;
     load(scope ?? "all").then(
       (data) => !cancelled && setResult({ key, data, failed: null }),
-      (e: unknown) => !cancelled && setResult({ key, data: null, failed: e instanceof RestrictedError ? "restricted" : "error" }),
+      (e: unknown) => {
+        if (cancelled) return;
+        noteLoadFailure(e); // the "couldn't load" panel names a specific reason when there is one
+        setResult({ key, data: null, failed: e instanceof RestrictedError ? "restricted" : "error" });
+      },
     );
     return () => {
       cancelled = true;

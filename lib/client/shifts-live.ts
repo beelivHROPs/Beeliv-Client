@@ -12,6 +12,7 @@
  */
 import { addDays, startOfWeek } from "./format";
 import { SHIFTS, SHIFT_ORDER } from "./labels";
+import { errorFromReply, isKnownErrorCode, networkError, replyCode } from "../shared/error-messages";
 import type {
   AttendanceRecord, AttendanceStatus, AttendanceSummary, DateRange, DepartmentId, ISODate, OutletScope,
   ScheduleDay, ScheduleShiftEntry, ShiftCoverage, ShiftKey,
@@ -31,9 +32,17 @@ const TTL_MS = 20_000;
 const cache = new Map<string, { at: number; p: Promise<LiveShift[]> }>();
 
 async function fetchSlice(from: ISODate, to: ISODate): Promise<LiveShift[]> {
-  const res = await fetch(`/api/client/shifts?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { credentials: "same-origin", cache: "no-store" });
+  let res: Response;
+  try {
+    res = await fetch(`/api/client/shifts?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { credentials: "same-origin", cache: "no-store" });
+  } catch {
+    throw networkError();
+  }
   const j = (await res.json().catch(() => null)) as { ok?: boolean; items?: unknown } | null;
-  if (!j || j.ok !== true || !Array.isArray(j.items)) throw new Error("Shifts could not be loaded. Please try again.");
+  if (!j || j.ok !== true || !Array.isArray(j.items)) {
+    const code = replyCode(j);
+    throw code && code !== "unavailable" && isKnownErrorCode(code) ? errorFromReply(j, "shift") : new Error("Shifts could not be loaded. Please try again.");
+  }
   return j.items as LiveShift[];
 }
 

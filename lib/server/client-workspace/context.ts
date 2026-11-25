@@ -3,6 +3,10 @@ import { sessionClient, adminClient } from "../auth/session";
 import { readAccess, hasAccess } from "../auth/policy";
 import { limitAuth } from "../auth/rate";
 import { parseShiftRange, projectClientShifts, type ClientShift } from "./shifts";
+import { parseNewStaffRequest, parseRequestId, projectClientRequests, projectReasons, type ClientStaffRequest } from "./requests";
+import { staffDocEnabled } from "../staff-documentation/flags";
+import { projectClientCompletion } from "../staff-documentation/project";
+import type { ClientCompletionDto, ClientStatus } from "../staff-documentation/types";
 
 export type ClientWorkspace = { name: string; scopes: { clientName: string; outletName: string | null }[]; truncated: boolean };
 
@@ -108,4 +112,87 @@ export async function readClientShifts(input: unknown): Promise<ClientShift[]> {
     throw new Error(["invalid_request", "agreement_required", "no_access"].includes(reason) ? reason : "unavailable");
   }
   return projectClientShifts(data.items);
+}
+
+/* ------------------------------------ Staff requests (day2-warnings-requests.sql, part B) ------------------------------------ */
+
+const REQUEST_REASONS = ["invalid_request", "agreement_required", "no_access"];
+function requestRefusal(data: { reason?: unknown } | null | undefined): never {
+  const reason = typeof data?.reason === "string" ? data.reason : "";
+  throw new Error(REQUEST_REASONS.includes(reason) ? reason : "unavailable");
+}
+
+/** The signed-in client user's staff requests at the outlets they may see, and the reason labels for the form. */
+export async function readClientRequests(): Promise<{ items: ClientStaffRequest[]; reasons: string[] }> {
+  const actor = await verifiedClientActor("client-requests");
+  const { data, error } = await adminClient("client").rpc("client_staff_request_list", { p_actor_uid: actor.uid, p_session_id: actor.sessionId });
+  if (error) throw new Error("unavailable");
+  if (data?.ok !== true) requestRefusal(data);
+  return { items: projectClientRequests(data.items), reasons: projectReasons(data.reasons) };
+}
+
+/** Sends a new staff request to Beeliv HR. The input is checked before any sign-in work. Returns the id and reference. */
+export async function createClientRequest(input: unknown): Promise<{ id: string; reference: string }> {
+  const r = parseNewStaffRequest(input);
+  if (!r) throw new Error("invalid_request");
+  const actor = await verifiedClientActor("client-requests");
+  const { data, error } = await adminClient("client").rpc("client_staff_request_create", {
+    p_actor_uid: actor.uid, p_session_id: actor.sessionId, p_outlet_id: r.outletId, p_role: r.role, p_department: r.department,
+    p_count: r.count, p_resumption_date: r.resumptionDate, p_reason: r.reason, p_notes: r.notes,
+  });
+  if (error) throw new Error("unavailable");
+  if (data?.ok !== true) requestRefusal(data);
+  if (typeof data.id !== "string" || !UUID.test(data.id) || typeof data.reference !== "string") throw new Error("unavailable");
+  return { id: data.id, reference: data.reference.slice(0, 40) };
+}
+
+/** Marks one of the user's requests as seen (clears its "Updated" mark). Out-of-scope ids change nothing. */
+export async function markClientRequestSeen(input: unknown): Promise<void> {
+  const requestId = parseRequestId(input);
+  if (!requestId) throw new Error("invalid_request");
+  const actor = await verifiedClientActor("client-requests");
+  const { data, error } = await adminClient("client").rpc("client_staff_request_seen", { p_actor_uid: actor.uid, p_session_id: actor.sessionId, p_request_id: requestId });
+  if (error) throw new Error("unavailable");
+  if (data?.ok !== true) requestRefusal(data);
+}
+
+/* ------------------------------------ Compliance (staff_doc_completion, client audience) ------------------------------------ */
+
+export type ClientComplianceRow = { placementId: string; outletId: string; staffName: string; items: { slot: string; label: string; status: ClientStatus }[] };
+
+/**
+ * Document STATUS (missing / in review / verified / needs attention) of the ORDINARY slots for the staff currently placed
+ * at the user's outlets. Person ids never come from (or go to) the browser: the server reads the user's own placed staff
+ * (client_portal_workforce), looks up those placements' people itself, and asks staff_doc_completion (client audience),
+ * which re-checks the session and that each person is currently placed in the user's scope. No file, reason or sensitive
+ * slot is ever returned (projectClientCompletion refuses a sensitive slot outright).
+ */
+export async function readClientCompliance(): Promise<ClientComplianceRow[]> {
+  if (!staffDocEnabled()) throw new Error("unavailable");
+  const actor = await verifiedClientActor("client-compliance");
+  const server = adminClient("client");
+  const portal = await server.rpc("client_portal_workforce", { p_actor_uid: actor.uid, p_session_id: actor.sessionId });
+  if (portal.error) throw new Error("unavailable");
+  if (portal.data?.ok !== true || !Array.isArray(portal.data.items)) requestRefusal(portal.data);
+  const members = (portal.data.items as Record<string, unknown>[]).filter((m) => UUID.test(str(m.placementId)) && UUID.test(str(m.outletId))).slice(0, 1000);
+  if (!members.length) return [];
+  const { data: placements, error } = await server.from("org_staff_placements").select("id, person_id").in("id", members.map((m) => str(m.placementId))).is("end_date", null);
+  if (error || !Array.isArray(placements)) throw new Error("unavailable");
+  const personOf = new Map<string, string>();
+  for (const p of placements as { id?: unknown; person_id?: unknown }[]) if (UUID.test(str(p.id)) && UUID.test(str(p.person_id))) personOf.set(str(p.id).toLowerCase(), str(p.person_id).toLowerCase());
+  const people = [...new Set(personOf.values())];
+  const byPerson = new Map<string, ClientCompletionDto["people"][number]>();
+  for (let i = 0; i < people.length; i += 50) {
+    const { data, error: rpcError } = await server.rpc("staff_doc_completion", { p_actor_uid: actor.uid, p_session_id: actor.sessionId, p_audience: "client", p_person_ids: people.slice(i, i + 50) });
+    if (rpcError) throw new Error("unavailable");
+    if (data?.ok !== true) requestRefusal(data);
+    const projected = projectClientCompletion(data);
+    if (!projected) throw new Error("unavailable");
+    for (const p of projected.people) byPerson.set(p.personId, p);
+  }
+  return members.flatMap((m) => {
+    const person = personOf.get(str(m.placementId).toLowerCase());
+    const done = person ? byPerson.get(person) : undefined;
+    return done ? [{ placementId: str(m.placementId), outletId: str(m.outletId), staffName: str(m.name), items: done.items.map((x) => ({ slot: x.slot, label: x.label, status: x.status })) }] : [];
+  });
 }

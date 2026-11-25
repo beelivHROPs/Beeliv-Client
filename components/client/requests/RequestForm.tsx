@@ -13,6 +13,7 @@ import { DEPARTMENT_LABEL, DEPARTMENT_ORDER } from "@/lib/client/labels";
 import { useOutletScope, useOutletState } from "@/lib/client/outlet";
 import * as service from "@/lib/client/service";
 import type { DepartmentId, WorkforceRequest } from "@/lib/client/types";
+import { errorMessage } from "@/lib/shared/error-messages";
 
 const MAX_COUNT = 50;
 
@@ -68,8 +69,8 @@ export function RequestForm({ onDone, onCancel }: { onDone: (r: WorkforceRequest
       const created = await service.createWorkforceRequest(scope, { outletId, role: role.trim(), departmentId: department, count: n, resumptionDate: date, reason, notes: notes.trim() });
       toast.add({ title: "Request sent to Beeliv", description: `${created.publicId} - Beeliv HR will review it.`, type: "success" });
       onDone(created);
-    } catch {
-      toast.add({ title: "We couldn't send your request", description: "Please try again.", type: "error" });
+    } catch (e) {
+      toast.add({ title: "We couldn't send your request", description: errorMessage(e), type: "error" });
     } finally {
       setBusy(false);
     }

@@ -7,7 +7,9 @@
  * (name, role, department, outlet, start date only - data-visibility-matrix).
  * Real since day1-assignment-client-shifts.sql (GET /api/client/shifts, ../shifts-live.ts): published shifts and check-ins,
  * so Attendance, Schedules and the Overview attendance figures. An empty week is an empty state, never an error.
- * Everything without a backend yet (candidates, requests, documents, payroll, notifications)
+ * Real since day2-warnings-requests.sql (../requests-live.ts): Workforce Requests (list, detail, new request); and Compliance
+ * (document STATUS of ordinary slots only, staff_doc_completion client audience).
+ * Everything without a backend yet (candidates, payroll, notifications)
  * is EMPTY: the approved screens show their empty states or Coming soon (components/client/ClientLiveGate.tsx).
  * Nothing is invented. The Beeliv contact is the real support address (hello@beeliv.co, the Supabase/Resend sender).
  */
@@ -23,6 +25,10 @@ import type {
 } from "../types";
 import { coverage, liveShifts, scheduleEntries, scoped, summary, toRecords, trend, week, type MemberLookup } from "../shifts-live";
 import { addDays, startOfWeek, todayISO } from "../format";
+import { errorFromReply, isKnownErrorCode, networkError, replyCode } from "../../shared/error-messages";
+import {
+  complianceSummary, createLiveRequest, department, DEPT_LABEL, liveCompliance, liveRequests, markLiveRequestSeen, scopedRequests,
+} from "../requests-live";
 
 type PortalOutlet = { outletId: string; outletName: string; clientId: string; clientName: string; city: string };
 type PortalMember = { placementId: string; clientId: string; clientName: string; outletId: string; outletName: string; name: string; role: string; department: string; startDate: string; status: string };
@@ -31,9 +37,12 @@ type Portal = { fullName: string; email: string; outlets: PortalOutlet[]; workfo
 let cached: Promise<Portal> | null = null;
 function portal(): Promise<Portal> {
   if (!cached) {
-    cached = fetch("/api/client/portal", { credentials: "same-origin", cache: "no-store" }).then(async (res) => {
+    cached = fetch("/api/client/portal", { credentials: "same-origin", cache: "no-store" }).catch(() => { throw networkError(); }).then(async (res) => {
       const j = (await res.json().catch(() => null)) as ({ ok?: boolean } & Portal) | null;
-      if (!j || j.ok !== true) throw new Error("Your account could not be loaded. Reload the page to try again.");
+      if (!j || j.ok !== true) {
+        const code = replyCode(j);
+        throw code && code !== "unavailable" && isKnownErrorCode(code) ? errorFromReply(j) : new Error("Your account could not be loaded. Reload the page to try again.");
+      }
       return j;
     });
     cached.catch(() => {
@@ -48,15 +57,6 @@ const NOT_CONNECTED = "This is coming soon. In the meantime, email Beeliv at hel
 const MANY = "Your businesses";
 const TEAM = { name: "Beeliv team", role: "Your Beeliv contact", phone: null, email: "hello@beeliv.co" };
 
-function department(text: string | null | undefined): DepartmentId {
-  const t = String(text ?? "").toLowerCase();
-  if (/kitchen|chef|cook/.test(t)) return "kitchen";
-  if (/bar/.test(t)) return "bar";
-  if (/admin|office|account/.test(t)) return "admin";
-  if (/support|clean|security|steward|maint/.test(t)) return "support";
-  return "floor-service";
-}
-const DEPT_LABEL: Record<DepartmentId, string> = { "floor-service": "Floor service", kitchen: "Kitchen", bar: "Bar", admin: "Admin", support: "Support" };
 
 function inScope<T extends { outletId: string }>(rows: T[], scope: OutletScope): T[] {
   return scope === "all" ? rows : rows.filter((r) => r.outletId === scope);
@@ -146,7 +146,8 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
     return week(weekOf, scoped(await liveShifts(first, addDays(first, 6)), scope));
   },
   getRecruitmentSummary: async () => ({ awaitingFeedback: 0, openPositions: 0, positions: [] }),
-  getComplianceSummary: async () => ({ total: 0, complete: 0, outstanding: 0, updateRequired: 0, expiringSoon: 0, percentComplete: 0, attention: [] }),
+  // Document STATUS of ordinary slots for the placed staff (GET /api/client/compliance). Same items as the list, so the numbers agree.
+  getComplianceSummary: async (scope) => complianceSummary(inScope(await liveCompliance(), scope)),
   getPayrollVisibility: async () => ({ upcoming: [], history: [] }),
   getRecentActivity: async () => [],
   getNotifications: async () => [],
@@ -159,8 +160,9 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
     return toRecords(scoped(items, scope), lookup);
   },
   getCandidates: async () => [],
-  getWorkforceRequests: async () => [],
-  getDocuments: async () => [],
+  // Staff requests (GET /api/client/requests, day2-warnings-requests.sql part B).
+  getWorkforceRequests: async (scope) => scopedRequests((await liveRequests()).items, scope),
+  getDocuments: async (scope) => inScope(await liveCompliance(), scope),
   async getWorkforceMemberDetail(scope, memberId): Promise<WorkforceMemberDetail | null> {
     const m = inScope((await portal()).workforce, scope).find((x) => x.placementId === memberId);
     if (!m) return null;
@@ -184,11 +186,18 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
   submitCandidateFeedback: async () => {
     throw new Error(NOT_CONNECTED);
   },
-  getWorkforceRequest: async () => null,
-  createWorkforceRequest: async () => {
-    throw new Error(NOT_CONNECTED);
+  async getWorkforceRequest(scope, id) {
+    const r = scopedRequests((await liveRequests()).items, scope).find((x) => x.id === id) ?? null;
+    // Opening it clears the "Updated" mark on the server; this view still shows the update notice once.
+    if (r?.hasUpdate) void markLiveRequestSeen(r.id);
+    return r;
   },
-  getWorkforceRequestReasons: async () => [],
+  async createWorkforceRequest(_scope, input) {
+    const created = await createLiveRequest(input);
+    for (const l of listeners) l("notifications"); // open lists refresh quietly
+    return created;
+  },
+  getWorkforceRequestReasons: async () => (await liveRequests()).reasons,
   // Setup is complete for anyone who reaches the Client screens (the real setup flow lives at /client/setup).
   // Settings shows the person's REAL name; job title, phone and preferences are not served yet, so they are empty.
   async getOnboarding() {
@@ -208,9 +217,10 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
     const body: Record<string, unknown> = {};
     if (input.details) Object.assign(body, { fullName: input.details.fullName, phone: input.details.phone, jobTitle: input.details.jobTitle });
     if (input.notifications) body.notifications = Object.fromEntries(Object.entries(input.notifications).filter(([, v]) => typeof v === "boolean"));
-    const res = await fetch("/api/client/profile", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch("/api/client/profile", { method: "POST", credentials: "same-origin", cache: "no-store", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => { throw networkError(); });
     const j = (await res.json().catch(() => null)) as { ok?: boolean; reason?: string } | null;
-    if (!j?.ok) throw new Error(j?.reason === "phone_in_use" ? "This phone number is already used by another Beeliv account." : j?.reason === "invalid_request" ? "Check the details and try again." : "We couldn't save that. Please try again.");
+    // phone_in_use never says whose number it is (lib/shared/error-messages.ts).
+    if (!j?.ok) throw errorFromReply(j, undefined, { invalid_request: "Check the details and try again.", unavailable: "We couldn't save that. Please try again." });
     cached = null; // reload the saved values
     return this.getOnboarding();
   },

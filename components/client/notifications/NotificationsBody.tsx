@@ -14,6 +14,7 @@ import { toast } from "@/components/ui/toast";
 import { useNotifications } from "@/lib/client/hooks";
 import { deleteNotification, markAllNotificationsRead, markNotificationRead } from "@/lib/client/service";
 import { fromClient } from "@/lib/notifications/adapters";
+import { errorMessage } from "@/lib/shared/error-messages";
 
 export function NotificationsBody() {
   const { data, status, retry } = useNotifications();
@@ -23,8 +24,8 @@ export function NotificationsBody() {
     try {
       await markAllNotificationsRead();
       toast.add({ title: "All notifications marked as read" });
-    } catch {
-      toast.add({ title: "We couldn't update your notifications", description: "Please try again.", type: "error" });
+    } catch (e) {
+      toast.add({ title: "We couldn't update your notifications", description: errorMessage(e), type: "error" });
     }
   }
 
