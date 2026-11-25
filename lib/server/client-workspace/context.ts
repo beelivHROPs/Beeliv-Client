@@ -4,7 +4,6 @@ import { readAccess, hasAccess } from "../auth/policy";
 import { limitAuth } from "../auth/rate";
 import { parseShiftRange, projectClientShifts, type ClientShift } from "./shifts";
 import { parseNewStaffRequest, parseRequestId, projectClientRequests, projectReasons, type ClientStaffRequest } from "./requests";
-import { staffDocEnabled } from "../staff-documentation/flags";
 import { projectClientCompletion } from "../staff-documentation/project";
 import type { ClientCompletionDto, ClientStatus } from "../staff-documentation/types";
 
@@ -168,7 +167,8 @@ export type ClientComplianceRow = { placementId: string; outletId: string; staff
  * slot is ever returned (projectClientCompletion refuses a sensitive slot outright).
  */
 export async function readClientCompliance(): Promise<ClientComplianceRow[]> {
-  if (!staffDocEnabled()) throw new Error("unavailable");
+  // Read-only document STATUS (no files, no storage): it only needs the database function, which is live, so it no
+  // longer depends on the STAFF_DOCUMENTATION_* upload/storage switches (lead 2026-11-25: Compliance kept failing on Client).
   const actor = await verifiedClientActor("client-compliance");
   const server = adminClient("client");
   const portal = await server.rpc("client_portal_workforce", { p_actor_uid: actor.uid, p_session_id: actor.sessionId });
