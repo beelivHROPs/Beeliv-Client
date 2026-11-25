@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Plus } from "@/components/applicant/icons";
 import { Field } from "@/components/applicant/apply/parts";
 import { DatePicker } from "@/components/applicant/form-fields";
 import { invalidAttrs, useFlagInvalid } from "@/components/applicant/form-feedback";
@@ -95,7 +94,7 @@ export function RequestForm({ onDone, onCancel }: { onDone: (r: WorkforceRequest
         <Field label="Number required" htmlFor="rq-count" error={errors.count}>
           <div role="group" aria-label="Number required" {...invalidAttrs(!!errors.count)} className="flex items-center gap-2">
             <button type="button" aria-label="One fewer" disabled={n <= 1} onClick={() => setN((Number.isFinite(n) ? n : 1) - 1)} className="ap-btn ap-btn-s size-12 shrink-0 p-0">
-              <span className="block h-0.5 w-3.5 rounded bg-current" aria-hidden="true" />
+              <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg>
             </button>
             <input
               id="rq-count"
@@ -111,7 +110,7 @@ export function RequestForm({ onDone, onCancel }: { onDone: (r: WorkforceRequest
               }}
             />
             <button type="button" aria-label="One more" disabled={n >= MAX_COUNT} onClick={() => setN((Number.isFinite(n) ? n : 0) + 1)} className="ap-btn ap-btn-s size-12 shrink-0 p-0">
-              <Plus className="size-4" aria-hidden="true" />
+              <svg viewBox="0 0 24 24" className="size-6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
             </button>
           </div>
         </Field>
