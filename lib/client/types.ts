@@ -198,6 +198,8 @@ export interface WorkforceRequest {
   updatedOn: ISODate;
   /** Beeliv updated it since the Client last opened it. */
   hasUpdate: boolean;
+  /** Beeliv HR's latest message to the Client about this request (live backend; absent in fixtures). */
+  message?: string | null;
 }
 
 export interface CandidateComment {
