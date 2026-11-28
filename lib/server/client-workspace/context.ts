@@ -4,13 +4,14 @@ import { readAccess, hasAccess } from "../auth/policy";
 import { limitAuth } from "../auth/rate";
 import { parseShiftRange, projectClientShifts, type ClientShift } from "./shifts";
 import { parseNewStaffRequest, parseRequestId, projectClientRequests, projectReasons, type ClientStaffRequest } from "./requests";
+import { parseNewSupportMessage, projectClientSupport, type ClientSupportMessage } from "./support";
 import { projectClientCompletion } from "../staff-documentation/project";
 import type { ClientCompletionDto, ClientStatus } from "../staff-documentation/types";
 
 export type ClientWorkspace = { name: string; scopes: { clientName: string; outletName: string | null }[]; truncated: boolean };
 
 /** Verified Client actor (provider user + claims + active client access), or throws. Shared by every Client read. */
-async function verifiedClientActor(bucket = "client-portal") {
+async function verifiedClientActor(bucket = "client-portal", action: "org_read" | "org_write" = "org_read") {
   if (process.env.CLIENT_WORKSPACE_SCHEMA_READY !== "true") throw new Error("client_workspace_unavailable");
   const client = await sessionClient("client", undefined, true);
   const [{ data: identity, error: identityError }, { data: proof, error: proofError }] = await Promise.all([client.auth.getUser(), client.auth.getClaims()]);
@@ -20,7 +21,7 @@ async function verifiedClientActor(bucket = "client-portal") {
   const access = await client.rpc("auth_access_context", { p_app: "client" });
   const context = readAccess(access.data, "client");
   if (access.error || !hasAccess(context) || context?.role !== "client") throw new Error("client_workspace_unavailable");
-  await limitAuth("client", "org_read", `${bucket}:${user.id}`);
+  await limitAuth("client", action, `${bucket}:${user.id}`);
   return { uid: user.id, email: user.email ?? "", sessionId: claims.session_id as string };
 }
 
@@ -153,6 +154,31 @@ export async function markClientRequestSeen(input: unknown): Promise<void> {
   const { data, error } = await adminClient("client").rpc("client_staff_request_seen", { p_actor_uid: actor.uid, p_session_id: actor.sessionId, p_request_id: requestId });
   if (error) throw new Error("unavailable");
   if (data?.ok !== true) requestRefusal(data);
+}
+
+/* ------------------------------------ Support messages (client-support-messages.sql) ------------------------------------ */
+
+/** The signed-in client user's Support messages (and Beeliv's replies). Opening the list counts as seeing the replies. */
+export async function readClientSupport(): Promise<ClientSupportMessage[]> {
+  const actor = await verifiedClientActor("support", "org_read");
+  const { data, error } = await adminClient("client").rpc("client_support_list", { p_actor_uid: actor.uid, p_session_id: actor.sessionId });
+  if (error) throw new Error("unavailable");
+  if (data?.ok !== true) requestRefusal(data);
+  return projectClientSupport(data.items);
+}
+
+/** Sends a Support message to Beeliv HR. The input is checked before any sign-in work. Returns the id and reference. */
+export async function createClientSupport(input: unknown): Promise<{ id: string; reference: string }> {
+  const m = parseNewSupportMessage(input);
+  if (!m) throw new Error("invalid_request");
+  const actor = await verifiedClientActor("support", "org_write");
+  const { data, error } = await adminClient("client").rpc("client_support_create", {
+    p_actor_uid: actor.uid, p_session_id: actor.sessionId, p_topic: m.topic, p_message: m.message, p_outlet_id: m.outletId,
+  });
+  if (error) throw new Error("unavailable");
+  if (data?.ok !== true) requestRefusal(data);
+  if (typeof data.id !== "string" || !UUID.test(data.id) || typeof data.reference !== "string") throw new Error("unavailable");
+  return { id: data.id, reference: data.reference.slice(0, 40) };
 }
 
 /* ------------------------------------ Compliance (staff_doc_completion, client audience) ------------------------------------ */
