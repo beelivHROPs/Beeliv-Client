@@ -293,7 +293,7 @@ function PhoneWorkforce({
                     {items.map((m) => (
                       <li key={m.id}>
                         <Link href={staffHref(m.id)} className="flex min-h-[68px] items-center gap-3 rounded-[20px] border border-(--ap-line) bg-(--ap-surface) p-3.5 active:bg-(--ap-tint-soft)">
-                          <PersonPhoto name={m.name} photoUrl={m.photoUrl} size={44} />
+                          <PersonPhoto name={m.name} photoUrl={m.photoUrl} placementId={m.id} size={44} />
                           <span className="min-w-0 flex-1 leading-tight">
                             <b className="block truncate text-[15px] font-semibold text-(--ap-ink)">{m.name}</b>
                             <span className="mt-0.5 block truncate text-[13px] text-(--ap-muted)">
@@ -375,7 +375,7 @@ function StaffTable({ rows, showOutlet, outletName }: ListProps) {
             <tr key={m.id} onClick={() => router.push(staffHref(m.id))} className="cursor-pointer border-t border-(--ap-line-2) hover:bg-(--ap-tint-soft)">
               <td className="py-2.5 pr-3">
                 <span className="flex items-center gap-2.5">
-                  <PersonPhoto name={m.name} photoUrl={m.photoUrl} size={34} />
+                  <PersonPhoto name={m.name} photoUrl={m.photoUrl} placementId={m.id} size={34} />
                   <span className="min-w-0 leading-tight">
                     <Link href={staffHref(m.id)} onClick={(e) => e.stopPropagation()} className="block font-semibold text-(--ap-ink) hover:text-(--ap-violet)">
                       {m.name}
@@ -408,7 +408,7 @@ function StaffCards({ rows, showOutlet, outletName }: ListProps) {
       {rows.map((m) => (
         <li key={m.id} className="border-t border-(--ap-line-2) first:border-t-0">
           <Link href={staffHref(m.id)} className="flex min-h-14 items-center gap-3 py-2">
-            <PersonPhoto name={m.name} photoUrl={m.photoUrl} size={36} />
+            <PersonPhoto name={m.name} photoUrl={m.photoUrl} placementId={m.id} size={36} />
             <span className="min-w-0 flex-1 leading-tight">
               <b className="block text-[15px]">{m.name}</b>
               <span className="block text-[13px] text-(--ap-muted)">

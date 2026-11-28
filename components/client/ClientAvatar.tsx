@@ -1,4 +1,6 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
 import { initials } from "@/lib/client/format";
 
 /**
@@ -7,10 +9,12 @@ import { initials } from "@/lib/client/format";
  * written next to it).
  */
 export function ClientAvatar({ name, photoUrl, size = 38, className = "" }: { name: string; photoUrl?: string | null; size?: number; className?: string }) {
-  if (photoUrl) {
+  const [failed, setFailed] = useState<string | null>(null);
+  if (photoUrl && photoUrl !== failed) {
     return (
       <span aria-hidden="true" className={`inline-flex shrink-0 overflow-hidden rounded-full ${className}`} style={{ width: size, height: size }}>
-        <Image src={photoUrl} alt="" width={size} height={size} unoptimized className="size-full object-cover" />
+        {/* eslint-disable-next-line @next/next/no-img-element -- short-lived signed storage links; the image optimiser would cache them past expiry */}
+        <img src={photoUrl} alt={name} width={size} height={size} referrerPolicy="no-referrer" onError={() => setFailed(photoUrl)} className="size-full rounded-full object-cover" />
       </span>
     );
   }

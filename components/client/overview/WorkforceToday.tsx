@@ -85,7 +85,7 @@ export function WorkforceToday({ className = "" }: { className?: string }) {
                       <tr key={r.id} className="border-t border-(--ap-line-2)">
                         <td className="py-2.5 pr-3">
                           <span className="flex items-center gap-2.5">
-                            <PersonPhoto name={r.staffName} size={30} />
+                            <PersonPhoto name={r.staffName} placementId={r.memberId} size={30} />
                             <b className="font-semibold text-(--ap-ink)">{r.staffName}</b>
                           </span>
                         </td>
@@ -108,7 +108,7 @@ export function WorkforceToday({ className = "" }: { className?: string }) {
               <ul className="m-0 flex list-none flex-col p-0 min-[768px]:hidden">
                 {rows.map((r) => (
                   <li key={r.id} className="flex items-center gap-3 border-t border-(--ap-line-2) py-2.5 first:border-t-0">
-                    <PersonPhoto name={r.staffName} size={38} />
+                    <PersonPhoto name={r.staffName} placementId={r.memberId} size={38} />
                     <span className="min-w-0 flex-1 leading-tight">
                       <b className="block truncate text-[15px]">{r.staffName}</b>
                       <span className="block truncate text-[13px] text-(--ap-muted)">

@@ -7,6 +7,7 @@ import { parseNewStaffRequest, parseRequestId, projectClientRequests, projectRea
 import { parseNewSupportMessage, projectClientSupport, type ClientSupportMessage } from "./support";
 import { projectClientCompletion } from "../staff-documentation/project";
 import type { ClientCompletionDto, ClientStatus } from "../staff-documentation/types";
+import { signStaffPhotos, type StaffPhoto } from "../staff-photos";
 
 export type ClientWorkspace = { name: string; scopes: { clientName: string; outletName: string | null }[]; truncated: boolean };
 
@@ -221,4 +222,30 @@ export async function readClientCompliance(): Promise<ClientComplianceRow[]> {
     const done = person ? byPerson.get(person) : undefined;
     return done ? [{ placementId: str(m.placementId), outletId: str(m.outletId), staffName: str(m.name), items: done.items.map((x) => ({ slot: x.slot, label: x.label, status: x.status })) }] : [];
   });
+}
+
+/* ------------------------------------ Staff profile pictures (staff-photos.sql) ------------------------------------ */
+
+/**
+ * Signed, short-lived links to the Passport photographs of the staff currently placed at the user's outlets, and only
+ * photos HR has verified (the database decides both), keyed by the user's own placement ids only.
+ * A failure of the feature itself is an empty list (initials stay).
+ */
+export async function readClientStaffPhotos(): Promise<{ placementIds: string[]; url: string }[]> {
+  const actor = await verifiedClientActor("photos", "org_read");
+  const photos: StaffPhoto[] = await signStaffPhotos("client", actor.uid, actor.sessionId);
+  if (!photos.length) return [];
+  // The Client never receives person ids or staff references (data-visibility-matrix: Compliance follows the same rule),
+  // nor placement ids at other businesses: keep only the user's own placed staff (client_portal_workforce).
+  try {
+    const portal = await adminClient("client").rpc("client_portal_workforce", { p_actor_uid: actor.uid, p_session_id: actor.sessionId });
+    if (portal.error || portal.data?.ok !== true || !Array.isArray(portal.data.items)) return [];
+    const mine = new Set((portal.data.items as Record<string, unknown>[]).map((m) => str(m.placementId).toLowerCase()).filter((x) => UUID.test(x)));
+    return photos.flatMap((p) => {
+      const placementIds = p.placementIds.filter((x) => mine.has(x));
+      return placementIds.length ? [{ placementIds, url: p.url }] : [];
+    });
+  } catch {
+    return [];
+  }
 }

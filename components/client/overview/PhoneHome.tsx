@@ -98,7 +98,7 @@ export function PhoneHome({ ov }: { ov: ClientOverview }) {
           <ul className="m-0 flex list-none flex-col rounded-[16px] border border-(--ap-line) bg-(--ap-surface) p-0 px-3.5">
             {onShift.slice(0, 4).map((r) => (
               <li key={r.id} className="flex items-center gap-3 border-t border-(--ap-line-2) py-2.5 first:border-t-0">
-                <PersonPhoto name={r.staffName} size={38} />
+                <PersonPhoto name={r.staffName} placementId={r.memberId} size={38} />
                 <span className="min-w-0 flex-1 leading-tight">
                   <b className="block truncate text-[15px]">{r.staffName}</b>
                   <span className="block truncate text-[13px] text-(--ap-muted)">
