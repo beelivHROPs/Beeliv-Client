@@ -83,7 +83,7 @@ export function ProfileSection({ details, session }: { details: ClientContactDet
     setBusy(true);
     try {
       await saveOnboarding({ details: { ...details, fullName: draft.fullName.trim(), jobTitle: draft.jobTitle.trim(), phone: draft.phone } });
-      toast.add({ title: "Profile saved" });
+      toast.add({ title: "Profile saved", type: "success" });
       setTried(false);
     } catch (e) {
       toast.add({ title: "We couldn't save that", description: errorMessage(e), type: "error" });
@@ -261,11 +261,22 @@ const DELIVERY: PrefRow[] = [
   { key: "channelEmail", label: "Email", detail: "Sent to your sign-in email. Email is Beeliv's only outside channel: no SMS or WhatsApp." },
 ];
 
-export function NotificationsSection({ prefs }: { prefs: NotificationPrefs }) {
+export function NotificationsSection({ prefs: initial }: { prefs: NotificationPrefs }) {
+  // The page doesn't reload after a save, so the switches keep their own state: flip at once, undo if the save fails.
+  const [prefs, setPrefs] = useState<NotificationPrefs>(initial);
+  const latest = useRef(prefs);
   function set(key: NotificationPrefKey) {
-    saveOnboarding({ notifications: { ...prefs, [key]: !prefs[key] } }).then(
-      () => toast.add({ title: "Saved" }),
-      () => toast.add({ title: "We couldn't save that", description: "Please try again.", type: "error" }),
+    const before = latest.current;
+    const next = { ...before, [key]: !before[key] };
+    latest.current = next;
+    setPrefs(next);
+    saveOnboarding({ notifications: next }).then(
+      () => toast.add({ title: "Saved", type: "success" }),
+      () => {
+        latest.current = { ...latest.current, [key]: before[key] };
+        setPrefs(latest.current);
+        toast.add({ title: "We couldn't save that", description: "Please try again.", type: "error" });
+      },
     );
   }
   const rows = (list: PrefRow[]) => list.map((r) => (
@@ -313,7 +324,7 @@ export function WorkspaceSection({ outlets, sessionDefault }: { outlets: Outlet[
             options={options}
             onChange={(v) => {
               setWorkspacePrefs({ defaultOutlet: v });
-              toast.add({ title: "Saved" });
+              toast.add({ title: "Saved", type: "success" });
             }}
           />
         </Field>
@@ -324,7 +335,7 @@ export function WorkspaceSection({ outlets, sessionDefault }: { outlets: Outlet[
             options={RANGE_OPTIONS}
             onChange={(v) => {
               setWorkspacePrefs({ defaultRange: v as DefaultRange });
-              toast.add({ title: "Saved" });
+              toast.add({ title: "Saved", type: "success" });
             }}
           />
         </Field>

@@ -23,7 +23,7 @@ export function NotificationsBody() {
   async function markAll() {
     try {
       await markAllNotificationsRead();
-      toast.add({ title: "All notifications marked as read" });
+      toast.add({ title: "All notifications marked as read", type: "success" });
     } catch (e) {
       toast.add({ title: "We couldn't update your notifications", description: errorMessage(e), type: "error" });
     }
