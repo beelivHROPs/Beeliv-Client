@@ -174,7 +174,7 @@ export function RecruitmentBody({ initialFilter }: { initialFilter: CandidateFil
                       {(phone && !moreCands ? shown.slice(0, 8) : shown).map((c) => (
                         <li key={c.id}>
                           <Link href={`/client/recruitment/${c.id}`} className="flex items-start gap-3 border-t border-(--ap-line-2) py-3.5 min-[768px]:px-2 min-[768px]:hover:bg-(--ap-tint-soft) max-[767px]:min-h-[68px] max-[767px]:items-center max-[767px]:rounded-[20px] max-[767px]:border max-[767px]:border-(--ap-line) max-[767px]:bg-(--ap-surface) max-[767px]:p-3.5">
-                            <PersonPhoto name={c.name} size={phone ? 36 : 44} />
+                            <PersonPhoto name={c.name} staff={false} size={phone ? 36 : 44} />
                             <span className="min-w-0 flex-1">
                               <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 max-[767px]:flex-col max-[767px]:items-start max-[767px]:gap-0">
                                 <b className="text-[15px] text-(--ap-ink)">{c.name}</b>

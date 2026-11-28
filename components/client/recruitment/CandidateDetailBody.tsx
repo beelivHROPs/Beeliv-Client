@@ -66,7 +66,7 @@ export function CandidateDetailBody({ id }: { id: string }) {
       {BACK}
       <div className="flex flex-col gap-4 min-[768px]:gap-5">
         <header className="ap-card grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-[20px] p-5 min-[640px]:flex min-[640px]:flex-wrap min-[640px]:gap-4 min-[768px]:p-6 [&>*:nth-child(n+3)]:col-span-2 [&>*:nth-child(n+3)]:justify-self-start min-[640px]:[&>*:nth-child(n+3)]:col-auto">
-          <PersonPhoto name={data.name} size={64} />
+          <PersonPhoto name={data.name} staff={false} size={64} />
           <div className="min-w-0 flex-1">
             <h1 className="text-[26px] leading-tight font-bold text-(--ap-ink) min-[768px]:text-[30px]">{data.name}</h1>
             <p className="mt-1 text-[15px] text-(--ap-muted)">

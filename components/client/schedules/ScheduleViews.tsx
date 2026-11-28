@@ -93,7 +93,7 @@ function ShiftCard({ shift: s, actions, records }: { shift: ScheduleShiftEntry; 
             {shown.map((e) =>
               e.kind === "person" ? (
                 <li key={e.p.memberId} className="flex min-h-14 items-center gap-3 border-t border-(--ap-line-2) py-2">
-                  <PersonPhoto name={e.p.name} photoUrl={e.p.photoUrl} size={34} />
+                  <PersonPhoto name={e.p.name} photoUrl={e.p.photoUrl} placementId={e.p.memberId} size={34} />
                   <span className="min-w-0 leading-tight">
                     <b className="block truncate text-[14.5px] font-semibold text-(--ap-ink)">{e.p.name}</b>
                     <span className="block truncate text-[13px] text-(--ap-muted)">
@@ -141,7 +141,7 @@ function ShiftCard({ shift: s, actions, records }: { shift: ScheduleShiftEntry; 
           <ul className="m-0 mt-2 grid list-none gap-x-6 p-0 min-[768px]:grid-cols-2 min-[1241px]:grid-cols-3" aria-label={`Absent on the ${s.label.toLowerCase()} shift`}>
             {absent.map((p) => (
               <li key={p.memberId} className="flex items-center gap-3 py-1.5">
-                <PersonPhoto name={p.name} photoUrl={p.photoUrl} size={34} />
+                <PersonPhoto name={p.name} photoUrl={p.photoUrl} placementId={p.memberId} size={34} />
                 <span className="min-w-0 flex-1 leading-tight">
                   <b className="block truncate text-[14.5px] font-semibold text-(--ap-ink)">{p.name}</b>
                   <span className="block truncate text-[13px] text-(--ap-muted)">{p.role}</span>

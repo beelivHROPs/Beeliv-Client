@@ -55,7 +55,7 @@ export function AttendanceDetailSheet({ r, outletName, onClose }: { r: Attendanc
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           <div className="flex items-center gap-3.5">
-            <PersonPhoto name={r.staffName} size={56} />
+            <PersonPhoto name={r.staffName} placementId={r.memberId} size={56} />
             <div className="min-w-0 leading-tight">
               <b className="block truncate text-[18px]">{r.staffName}</b>
               <span className="mt-0.5 block truncate text-[14px] text-(--ap-muted)">{r.role}</span>

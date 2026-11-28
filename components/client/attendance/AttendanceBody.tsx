@@ -310,7 +310,7 @@ function PhoneAttendance({
                 {rows.map((r) => (
                   <li key={r.id}>
                     <Link href={staffHref(r.memberId)} className="flex min-h-[68px] items-center gap-3 rounded-[20px] border border-(--ap-line) bg-(--ap-surface) p-3.5 active:bg-(--ap-tint-soft)">
-                      <PersonPhoto name={r.staffName} size={44} />
+                      <PersonPhoto name={r.staffName} placementId={r.memberId} size={44} />
                       <span className="min-w-0 flex-1 leading-tight">
                         <b className="block truncate text-[15px] font-semibold text-(--ap-ink)">{r.staffName}</b>
                         <span className="mt-0.5 block truncate text-[13px] text-(--ap-muted)">
@@ -465,7 +465,7 @@ function Records({ rows, total, shown, onMore, showDate, showOutlet, outletName,
                   >
                     <td className="py-2.5 pr-3">
                       <span className="flex items-center gap-2.5">
-                        <PersonPhoto name={r.staffName} size={30} />
+                        <PersonPhoto name={r.staffName} placementId={r.memberId} size={30} />
                         <span className="min-w-0 leading-tight">
                           <b className="block font-semibold text-(--ap-ink)">{r.staffName}</b>
                           <span className="block text-[12px] text-(--ap-muted) tabular-nums">{r.staffId}</span>
@@ -491,7 +491,7 @@ function Records({ rows, total, shown, onMore, showDate, showOutlet, outletName,
             {visible.map((r) => (
               <li key={r.id} className="border-t border-(--ap-line-2) first:border-t-0">
                 <button type="button" onClick={() => setOpen(r)} className="flex min-h-14 w-full items-center gap-3 py-2 text-left active:bg-(--ap-tint-soft)">
-                <PersonPhoto name={r.staffName} size={36} />
+                <PersonPhoto name={r.staffName} placementId={r.memberId} size={36} />
                 <span className="min-w-0 flex-1 leading-tight">
                   <b className="block text-[15px]">{r.staffName}</b>
                   <span className="block text-[13px] text-(--ap-muted)">

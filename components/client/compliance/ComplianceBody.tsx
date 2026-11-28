@@ -167,7 +167,7 @@ export function ComplianceBody({ initialFilter }: { initialFilter: ComplianceFil
                 const days = i.expiresOn ? daysBetween(today, i.expiresOn) : null;
                 return (
                   <li key={i.id} className="flex items-center gap-3 border-t border-(--ap-line-2) py-3.5 first:border-t-0 max-[767px]:min-h-14 max-[767px]:flex-wrap max-[767px]:rounded-[20px] max-[767px]:border max-[767px]:border-(--ap-line) max-[767px]:bg-(--ap-surface) max-[767px]:p-3.5">
-                    <PersonPhoto name={i.staffName} size={phone ? 36 : 40} />
+                    <PersonPhoto name={i.staffName} placementId={i.memberId} size={phone ? 36 : 40} />
                     <span className="min-w-0 flex-1">
                       <b className="block text-[15px] text-(--ap-ink)">{i.staffName}</b>
                       <span className="mt-0.5 flex items-center gap-1.5 text-[13px] text-(--ap-muted)">
