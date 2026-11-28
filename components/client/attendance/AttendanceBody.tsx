@@ -23,6 +23,7 @@ import { FILTER_ROW, FilterSelect } from "../records-filters";
 import { AttendanceChip } from "../StatusChip";
 import { AnalyticsPanel, ChartEmptyState, DateRangeSelector, resolveRange, STATUS_LABEL, type PresetOption, type RangeValue } from "../charts";
 import { AttendanceBodySkeleton, AttendanceError } from "./AttendanceStates";
+import { AttendanceDetailSheet } from "./AttendanceDetailSheet";
 
 const ALL = "all";
 const PAGE = 25;
@@ -412,6 +413,7 @@ const rowDate = (d: string) => `${weekday(d)} ${dayMonth(d)}`;
 /** The actual staff records the figures above are made of: table on tablet / desktop, cards on phones. */
 function Records({ rows, total, shown, onMore, showDate, showOutlet, outletName, status, filtersOn, onClear, periodLabel }: RecordsProps) {
   const visible = rows.slice(0, shown);
+  const [open, setOpen] = useState<AttendanceRecord | null>(null);
   const statusText = status === ALL ? "" : status === "checked-in" ? "checked in" : STATUS_LABEL[status].toLowerCase();
   return (
     <AnalyticsPanel anchor="records" title="Attendance records" subtitle={`${rows.length} of ${plural(total, "record")} · ${periodLabel}${statusText ? ` · ${statusText}` : ""}`}>
@@ -436,8 +438,8 @@ function Records({ rows, total, shown, onMore, showDate, showOutlet, outletName,
               <caption className="sr-only">Staff attendance records for {periodLabel}</caption>
               <thead>
                 <tr className="text-[12px] font-bold tracking-[.06em] text-(--ap-muted) uppercase">
-                  {showDate ? <th scope="col" className="pb-2 font-bold">Date</th> : null}
                   <th scope="col" className="pb-2 font-bold">Staff</th>
+                  {showDate ? <th scope="col" className="pb-2 font-bold">Date</th> : null}
                   <th scope="col" className="pb-2 font-bold">Role</th>
                   <th scope="col" className="pb-2 font-bold max-[1100px]:hidden">Department</th>
                   {showOutlet ? <th scope="col" className="pb-2 font-bold max-[1240px]:hidden">Outlet</th> : null}
@@ -448,8 +450,19 @@ function Records({ rows, total, shown, onMore, showDate, showOutlet, outletName,
               </thead>
               <tbody>
                 {visible.map((r) => (
-                  <tr key={r.id} className="border-t border-(--ap-line-2)">
-                    {showDate ? <td className="py-2.5 pr-3 whitespace-nowrap text-(--ap-ink-2)">{rowDate(r.date)}</td> : null}
+                  <tr
+                    key={r.id}
+                    tabIndex={0}
+                    aria-label={`Open attendance for ${r.staffName}, ${rowDate(r.date)}`}
+                    onClick={() => setOpen(r)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        setOpen(r);
+                      }
+                    }}
+                    className="cursor-pointer border-t border-(--ap-line-2) hover:bg-(--ap-tint-soft) focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-(--ap-violet)"
+                  >
                     <td className="py-2.5 pr-3">
                       <span className="flex items-center gap-2.5">
                         <PersonPhoto name={r.staffName} size={30} />
@@ -459,6 +472,7 @@ function Records({ rows, total, shown, onMore, showDate, showOutlet, outletName,
                         </span>
                       </span>
                     </td>
+                    {showDate ? <td className="py-2.5 pr-3 whitespace-nowrap text-(--ap-ink-2)">{rowDate(r.date)}</td> : null}
                     <td className="py-2.5 pr-3 text-(--ap-ink-2)">{r.role}</td>
                     <td className="py-2.5 pr-3 whitespace-nowrap text-(--ap-ink-2) max-[1100px]:hidden">{DEPARTMENT_LABEL[r.departmentId]}</td>
                     {showOutlet ? <td className="py-2.5 pr-3 whitespace-nowrap text-(--ap-ink-2) max-[1240px]:hidden">{outletName(r.outletId)}</td> : null}
@@ -475,7 +489,8 @@ function Records({ rows, total, shown, onMore, showDate, showOutlet, outletName,
 
           <ul aria-label="Attendance records" className="m-0 flex list-none flex-col p-0 min-[768px]:hidden">
             {visible.map((r) => (
-              <li key={r.id} className="flex min-h-14 items-center gap-3 border-t border-(--ap-line-2) py-2 first:border-t-0">
+              <li key={r.id} className="border-t border-(--ap-line-2) first:border-t-0">
+                <button type="button" onClick={() => setOpen(r)} className="flex min-h-14 w-full items-center gap-3 py-2 text-left active:bg-(--ap-tint-soft)">
                 <PersonPhoto name={r.staffName} size={36} />
                 <span className="min-w-0 flex-1 leading-tight">
                   <b className="block text-[15px]">{r.staffName}</b>
@@ -485,6 +500,7 @@ function Records({ rows, total, shown, onMore, showDate, showOutlet, outletName,
                   </span>
                 </span>
                 <AttendanceChip status={r.status} />
+                </button>
               </li>
             ))}
           </ul>
@@ -501,6 +517,7 @@ function Records({ rows, total, shown, onMore, showDate, showOutlet, outletName,
           </div>
         </>
       )}
+      {open ? <AttendanceDetailSheet r={open} outletName={outletName(open.outletId)} onClose={() => setOpen(null)} /> : null}
     </AnalyticsPanel>
   );
 }
