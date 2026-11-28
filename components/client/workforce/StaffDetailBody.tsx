@@ -153,10 +153,8 @@ export function StaffDetailBody({ id }: { id: string }) {
             </dl>
           </AnalyticsPanel>
 
-          <AnalyticsPanel title="Attendance summary" subtitle={live ? undefined : period}>
-            {live ? (
-              <p className={NOTE}>Attendance records are coming soon.</p>
-            ) : !a.scheduled ? (
+          <AnalyticsPanel title="Attendance summary" subtitle={period}>
+            {!a.scheduled ? (
               <p className={NOTE}>No attendance recorded for this period yet.</p>
             ) : (
               <>
@@ -187,10 +185,8 @@ export function StaffDetailBody({ id }: { id: string }) {
             )}
           </AnalyticsPanel>
 
-          <AnalyticsPanel title="Upcoming schedule" subtitle={live ? undefined : "The next 7 days"}>
-            {live ? (
-              <p className={NOTE}>Schedules are coming soon.</p>
-            ) : data.upcomingSchedule.length === 0 ? (
+          <AnalyticsPanel title="Upcoming schedule" subtitle={live ? "Next shifts" : "The next 7 days"}>
+            {data.upcomingSchedule.length === 0 ? (
               <p className={NOTE}>No upcoming shifts are scheduled.</p>
             ) : (
               <ul className="m-0 flex list-none flex-col p-0">
@@ -206,9 +202,7 @@ export function StaffDetailBody({ id }: { id: string }) {
           </AnalyticsPanel>
 
           <AnalyticsPanel title="Compliance and documents" subtitle="Approved operational documents only">
-            {live ? (
-              <p className={NOTE}>Shared documents are coming soon.</p>
-            ) : data.documents.length === 0 ? (
+            {data.documents.length === 0 ? (
               <p className={NOTE}>No operational documents are shared with you for this person.</p>
             ) : (
               <>

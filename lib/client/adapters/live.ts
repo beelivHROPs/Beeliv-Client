@@ -23,7 +23,7 @@ import type {
   WorkforceMember,
   WorkforceMemberDetail,
 } from "../types";
-import { coverage, liveShifts, scheduleEntries, scoped, summary, toRecords, trend, week, type MemberLookup } from "../shifts-live";
+import { coverage, liveShifts, scheduleEntries, scoped, shiftBand, summary, toRecords, trend, week, type MemberLookup } from "../shifts-live";
 import { addDays, startOfWeek, todayISO } from "../format";
 import { errorFromReply, isKnownErrorCode, networkError, replyCode } from "../../shared/error-messages";
 import {
@@ -166,14 +166,26 @@ export const liveClientAdapter: ClientAnalyticsAdapter = {
   async getWorkforceMemberDetail(scope, memberId): Promise<WorkforceMemberDetail | null> {
     const m = inScope((await portal()).workforce, scope).find((x) => x.placementId === memberId);
     if (!m) return null;
+    // The same real data as Attendance, Schedules and Compliance, narrowed to this one person (placement id).
+    const day = today(), from = addDays(day, -29), to = addDays(day, 13);
+    const [items, lookup, docs] = await Promise.all([
+      liveShifts(from, to).catch(() => [] as Awaited<ReturnType<typeof liveShifts>>),
+      memberLookup().catch(() => (() => null) as MemberLookup),
+      liveCompliance().catch(() => [] as Awaited<ReturnType<typeof liveCompliance>>),
+    ]);
+    const mine = scoped(items, scope).filter((x) => lookup(x.outletId, x.staffName) === memberId);
+    const records = toRecords(mine.filter((x) => x.date <= day), lookup);
+    const count = (st: string) => records.filter((r) => r.status === st).length;
+    const scheduled = records.length, present = count("present");
     return {
       member: member(m),
       outletName: m.outletName || "",
       clientName: m.clientName || "",
-      attendance: { from: today(), to: today(), scheduled: 0, present: 0, late: 0, absent: 0, onLeave: 0, attendanceRate: 0 },
-      recentAttendance: [],
-      upcomingSchedule: [],
-      documents: [],
+      attendance: { from, to: day, scheduled, present, late: count("late"), absent: count("absent"), onLeave: count("on-leave"), attendanceRate: scheduled ? Math.round((present / scheduled) * 1000) / 10 : 0 },
+      recentAttendance: records.slice(0, 5),
+      upcomingSchedule: mine.filter((x) => x.date >= day && x.status === "scheduled").sort((x, y) => `${x.date}${x.start}`.localeCompare(`${y.date}${y.start}`)).slice(0, 7)
+        .map((x) => ({ date: x.date, shift: shiftBand(x.start), start: x.start.slice(0, 5), end: x.end.slice(0, 5) })),
+      documents: inScope(docs, scope).filter((d) => d.memberId === memberId),
       history: [],
     };
   },
